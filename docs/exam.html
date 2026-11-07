@@ -19,11 +19,11 @@
         <h3>Instructions</h3>
         <ol>
           <li>The timer starts when you press <b>Start test</b>. When it reaches zero, the test submits automatically.</li>
-          <li>Click an option to choose it. Your answer is saved straight away.</li>
+          <li>Click an option to choose it. Answers save automatically, online and on this device.</li>
           <li><b>Save &amp; Next</b> moves to the next question. <b>Mark for Review &amp; Next</b> flags the question so you can come back to it.</li>
           <li>Questions that are answered and marked for review are still counted when scored.</li>
           <li>Jump to any question from the palette on the right.</li>
-          <li>Closing the tab is safe. Open the paper again to resume with the time that was left.</li>
+          <li>Closing the tab is safe. Log in on any device and open the paper to resume. The timer keeps running while you are away.</li>
           <li>Keyboard: <b>A-D</b> or <b>1-4</b> choose an option, <b>&rarr;</b> next, <b>&larr;</b> previous, <b>M</b> mark for review.</li>
         </ol>
 
@@ -53,6 +53,7 @@
         <span class="exam-head-title" id="examTitle"></span>
       </div>
       <div style="display:flex; align-items:center; gap:10px">
+        <span class="saving" id="saveState"></span>
         <div class="timer" id="timer"><small>Time left</small><span id="timeLeft">--:--:--</span></div>
         <button class="btn btn-ghost palette-toggle" id="paletteToggle" aria-label="Show question palette">&#9776;</button>
       </div>
@@ -113,6 +114,6 @@
 
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
-  <script src="js/exam.js"></script>
+  <script type="module" src="js/exam.js"></script>
 </body>
 </html>

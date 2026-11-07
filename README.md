@@ -2,7 +2,7 @@
 
 A website for practising BPSC previous-year papers in real exam mode: login, timer, question palette, autosave and resume, then a scored result with every answer and explanation.
 
-Python turns the PDFs into question files, and the website is plain HTML/JS hosted free on GitHub Pages.
+Python turns the PDFs into question files. The website is plain HTML/JS hosted free on GitHub Pages. Logins and results are stored in Firebase (free plan), so students can use any device and the admin page shows everyone's scores.
 
 ```
 bpsc-mock-test/
@@ -11,8 +11,11 @@ bpsc-mock-test/
 │   ├── papers.html        paper list + attempt history
 │   ├── exam.html          exam screen
 │   ├── result.html        score + answer review
+│   ├── admin.html         all students' results (admins only)
 │   ├── css/style.css
-│   ├── js/config.js       site name and users  <- edit this
+│   ├── js/config.js       site name
+│   ├── js/firebase-config.js   your Firebase keys  <- edit this
+│   ├── js/fb.js           login + database code
 │   ├── js/common.js
 │   ├── js/exam.js
 │   └── data/
@@ -20,10 +23,10 @@ bpsc-mock-test/
 │       └── papers/        one JSON per paper
 ├── tools/
 │   ├── parse_pdf.py       PDF -> JSON
-│   ├── add_user.py        makes a login line for config.js
 │   └── serve.py           preview the site locally
 ├── pdfs/                  put your PDFs here (not uploaded to GitHub)
 ├── review/                parser's list of questions to check by hand
+├── firestore.rules        database security rules (paste into Firebase)
 └── requirements.txt
 ```
 
@@ -77,25 +80,49 @@ It prints how many questions and answers it found, writes `docs/data/papers/bpsc
 
 The parser is tuned for the Oswaal "20 previous years solved papers" layout: two columns, questions first, then `12 Option (c) is correct.` with an explanation. PDFs from a different book or a scanned PDF (no selectable text) will need changes to the patterns at the top of `parse_pdf.py`.
 
-## 3. Preview on your computer
+## 3. Set up Firebase (one time, about 10 minutes)
+
+1. Go to https://console.firebase.google.com and sign in with your Google account.
+2. **Create a project** (name it e.g. `bpsc-mock-test`). Google Analytics is not needed, turn it off. Stay on the free **Spark** plan.
+3. **Turn on login:** left menu **Build > Authentication > Get started > Sign-in method > Email/Password > Enable > Save**.
+4. **Allow your website:** still in Authentication, open **Settings > Authorized domains > Add domain** and add `inventornext.github.io` (`localhost` is already there).
+5. **Create the database:** **Build > Firestore Database > Create database**. Pick location `asia-south1 (Mumbai)`, choose **Start in production mode**, then **Create**.
+6. **Security rules:** in Firestore open the **Rules** tab, delete everything, paste the whole contents of `firestore.rules` from this project, click **Publish**.
+7. **Get your keys:** click the gear icon > **Project settings > General**. Under "Your apps" click the **</>** (Web) icon, give it a nickname, don't tick Hosting, click **Register app**. Copy the values from the `firebaseConfig` it shows into `docs/js/firebase-config.js`, replacing the `PASTE_...` text.
+
+These keys are meant to be public. The security rules are what protect the data: students can only read and write their own progress and results, and only admins can see everyone's.
+
+### Make yourself admin
+
+1. Open the site and **Sign up** with your own email.
+2. In Firebase: **Authentication > Users**, copy your **User UID**.
+3. **Firestore Database > Data > + Start collection**. Collection ID: `admins`. Document ID: paste your UID. Add any field, e.g. `name` = `Ganesh`. **Save**.
+4. Log out and back in. An **Admin** link appears in the top bar.
+
+Do the same to add another admin. To stop public sign-ups, set `ALLOW_SIGNUP = false` in `firebase-config.js` and add students yourself under **Authentication > Users > Add user**.
+
+## 4. Preview on your computer
 
 ```
 python tools/serve.py
 ```
 
-Your browser opens at http://localhost:8000. Default login: **student / bpsc@123**.
+Your browser opens at http://localhost:8000. (Opening `docs/index.html` by double-clicking won't work, because browsers block that. Always use `serve.py`.)
 
-(Opening `docs/index.html` directly by double-clicking won't load the papers, because browsers block that. Always use `serve.py`.)
+## Where data is stored
 
-## 4. Users and passwords
+| what | where |
+|---|---|
+| Accounts and passwords | Firebase Authentication (passwords are never visible, not even to you) |
+| Student names | Firestore `users` |
+| Test in progress | Firestore `users/<uid>/progress`, saved about every 15 seconds and when the tab is closed; also backed up in the browser in case the internet drops |
+| Submitted tests | Firestore `attempts` |
+| Who is admin | Firestore `admins` |
+| Question papers | `docs/data/papers/*.json` in this repo (public) |
 
-```
-python tools/add_user.py ganesh "Ganesh Pandey"
-```
+Free plan limits: 50,000 reads and 20,000 writes a day, 1 GB storage. One full test uses roughly 10 to 30 writes, so that's around 1,000 tests a day. If a limit is hit, the database pauses until the next day; you are never charged on the Spark plan.
 
-Type a password, then paste the printed line into `USERS` in `docs/js/config.js`. Delete the default `student` line before going live.
-
-**Be aware:** on a static site, login only keeps casual visitors out. Anyone who opens the page source can bypass it, and the paper JSON files can be downloaded directly. Results are saved in each user's own browser, so they don't follow you to another device.
+Note: the answer keys are inside the public paper JSON files, so a determined student could look them up. That's normal for a practice site.
 
 ## 5. Put it on GitHub Pages
 
@@ -118,10 +145,12 @@ To add more papers later: run `parse_pdf.py`, fix the review items, then commit 
 
 ## Exam features
 
+- Email login with sign up and forgot password
 - Timer that keeps running if you close the tab, and auto-submits at zero
-- Answers save instantly in the browser; reopening resumes where you left off
+- Answers save online; log in on another device to resume
+- Admin page: every student, best and average score, all attempts, search, CSV download
 - Palette colours: not visited, not answered, answered, marked for review, answered + marked
 - Keyboard: A-D or 1-4 to choose, arrow keys to move, M to mark
 - Results: score, accuracy, time taken, filters (correct / wrong / not answered / marked), explanations
-- Attempt history and best score per paper
+- Attempt history and best score per paper, on any device
 - Works on phones (palette opens from the menu button)

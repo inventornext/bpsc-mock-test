@@ -1,19 +1,54 @@
 // Exam screen: instructions, timer, autosave, palette, submit.
+// Answers save to this browser instantly and to Firebase every few seconds,
+// so a test can be resumed on another device.
 
-const session = Auth.require();
+import {
+  requireUser, logout, loadProgress, saveProgress, clearProgress, saveAttempt, friendlyError,
+} from "./fb.js";
+
+const user = await requireUser();
 const paperId = qs("paper");
 const LETTERS = ["a", "b", "c", "d"];
 
 let paper = null;
 let state = null;      // saved progress for this user + paper
 let timerId = null;
+let submitting = false;
 const $ = (id) => document.getElementById(id);
 
-const progressKey = () => Keys.progress(session.username, paperId);
-const save = () => Store.set(progressKey(), state);
+const localKey = () => Keys.progress(user.uid, paperId);
+
+/* ---------- saving ---------- */
+const CLOUD_EVERY_MS = 15000;
+let dirty = false, flushTimer = null, flushing = null;
+
+function save() {
+  state.updatedAt = Date.now();
+  Store.set(localKey(), state);          // instant local backup
+  dirty = true;
+  setSaveLabel("Saving...");
+  if (!flushTimer) flushTimer = setTimeout(flush, CLOUD_EVERY_MS);
+}
+
+async function flush() {
+  clearTimeout(flushTimer); flushTimer = null;
+  if (!dirty || !state || state.submitted) return;
+  if (flushing) return flushing;
+  dirty = false;
+  flushing = saveProgress(user.uid, paperId, state)
+    .then(() => setSaveLabel(dirty ? "Saving..." : "Saved"))
+    .catch((e) => { dirty = true; setSaveLabel("Offline, saved here"); console.warn(e); })
+    .finally(() => { flushing = null; });
+  return flushing;
+}
+
+function setSaveLabel(t) { const el = $("saveState"); if (el) el.textContent = t; }
+
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
+window.addEventListener("online", () => { dirty = true; flush(); });
 
 (async function init() {
-  renderTopbar(session);
+  renderTopbar(user, logout);
   if (!paperId) { location.replace("papers.html"); return; }
 
   try {
@@ -24,7 +59,11 @@ const save = () => Store.set(progressKey(), state);
   }
   document.title = `${paper.title} | ${SITE.name}`;
 
-  state = Store.get(progressKey());
+  // newest of: cloud copy, this browser's copy
+  let cloud = null;
+  try { cloud = await loadProgress(user.uid, paperId); } catch (e) { console.warn("cloud load failed", e); }
+  const local = Store.get(localKey());
+  state = [cloud, local].filter(Boolean).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0] || null;
   const resumable = state && !state.submitted && state.endsAt > Date.now();
 
   // time ran out while the tab was closed: submit what was saved
@@ -63,6 +102,7 @@ function showInstructions(resumable) {
         submitted: false,
       };
       save();
+      flush();
     }
     startExam();
   };
@@ -74,8 +114,8 @@ function startExam() {
 
   $("examBadge").textContent = SITE.short;
   $("examTitle").textContent = paper.title;
-  $("avatar").textContent = initials(session.name);
-  $("uname").textContent = session.name;
+  $("avatar").textContent = initials(user.name);
+  $("uname").textContent = user.name;
   $("usub").textContent = `${paper.questions.length} questions, ${paper.duration} min`;
 
   buildPalette();
@@ -90,7 +130,7 @@ function tick() {
   const left = (state.endsAt - Date.now()) / 1000;
   $("timeLeft").textContent = fmtClock(left);
   $("timer").classList.toggle("warn", left <= 300);
-  if (left <= 0) {
+  if (left <= 0 && !submitting) {
     clearInterval(timerId);
     submit(true);
   }
@@ -226,12 +266,23 @@ function openSubmitModal() {
 }
 
 /* ---------- submit ---------- */
-function submit(auto) {
+
+async function submit(auto) {
+  if (submitting) return;
+  submitting = true;
   if (timerId) clearInterval(timerId);
+  clearTimeout(flushTimer);
+
+  const btn = $("confirmSubmit");
+  if (btn) { btn.disabled = true; btn.textContent = "Submitting..."; }
+
   const end = Math.min(Date.now(), state.endsAt);
   const s = scoreAttempt(paper, state.answers);
   const attempt = {
-    id: `${paperId}_${Date.now()}`,
+    id: state.attemptId || `${user.uid}_${paperId}_${Date.now()}`,
+    uid: user.uid,
+    name: user.name,
+    email: user.email,
     paperId,
     title: paper.title,
     submittedAt: Date.now(),
@@ -241,9 +292,33 @@ function submit(auto) {
     marked: state.marked,
     ...s,
   };
-  const all = Store.get(Keys.attempts(session.username), []);
-  all.push(attempt);
-  Store.set(Keys.attempts(session.username), all);
-  Store.remove(progressKey());
+  // keep the same id if we have to retry, so it's never saved twice
+  state.attemptId = attempt.id;
+  Store.set(localKey(), state);
+
+  try {
+    await saveAttempt(attempt);
+  } catch (e) {
+    submitting = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Try again"; }
+    showSubmitError(friendlyError(e));
+    return;
+  }
+
+  state.submitted = true;
+  Store.remove(localKey());
+  try { await clearProgress(user.uid, paperId); } catch (e) { console.warn(e); }
   location.replace(`result.html?attempt=${encodeURIComponent(attempt.id)}${auto ? "&auto=1" : ""}`);
+}
+
+function showSubmitError(text) {
+  // make sure the modal is visible with a retry button, even for auto-submit
+  if ($("examScreen").classList.contains("hidden")) {
+    $("instrScreen").classList.add("hidden");
+    $("examScreen").classList.remove("hidden");
+  }
+  $("submitModal").classList.remove("hidden");
+  $("submitSummary").innerHTML = `<tr><td colspan="2" style="color:var(--red)">Couldn't submit: ${esc(text)}<br>Your answers are safe on this device. Check your internet and press Try again.</td></tr>`;
+  $("cancelSubmit").classList.add("hidden");
+  $("confirmSubmit").onclick = () => submit(true);
 }

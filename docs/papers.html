@@ -11,7 +11,7 @@
 
   <main class="container">
     <h1 class="page-title" id="hello">Papers</h1>
-    <p class="page-sub">Pick a paper to start a timed test. Your answers save automatically, so you can close the tab and resume later.</p>
+    <p class="page-sub">Pick a paper to start a timed test. Your answers save online as you go, so you can resume on any device.</p>
 
     <div class="paper-grid" id="papers"><div class="empty">Loading papers...</div></div>
 
@@ -21,32 +21,35 @@
 
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
-  <script>
-    const session = Auth.require();
-    renderTopbar(session);
+  <script type="module">
+    import { requireUser, logout, myAttempts, listProgress, friendlyError } from "./js/fb.js";
+
+    const user = await requireUser();
+    renderTopbar(user, logout);
     document.title = `Papers | ${SITE.name}`;
-    document.getElementById("hello").textContent = `Welcome, ${session.name}`;
+    document.getElementById("hello").textContent = `Welcome, ${user.name}`;
 
-    const attempts = Store.get(Keys.attempts(session.username), []);
+    const box = document.getElementById("papers");
+    const hist = document.getElementById("history");
+    let papers, attempts, progress;
+    try {
+      [papers, attempts, progress] = await Promise.all([
+        loadJSON("data/papers.json"), myAttempts(user.uid), listProgress(user.uid),
+      ]);
+    } catch (e) {
+      showFatal(box, "Could not load: " + friendlyError(e));
+      hist.innerHTML = "";
+      throw e;
+    }
 
-    (async () => {
-      const box = document.getElementById("papers");
-      let papers;
-      try {
-        papers = await loadJSON("data/papers.json");
-      } catch (e) {
-        box.innerHTML = `<div class="empty">Could not load papers. If you opened this file directly, run <b>python tools/serve.py</b> and use the link it prints.</div>`;
-        return;
-      }
-      if (!papers.length) {
-        box.innerHTML = `<div class="empty">No papers yet. Add one with tools/parse_pdf.py.</div>`;
-        return;
-      }
+    if (!papers.length) {
+      box.innerHTML = `<div class="empty">No papers yet. Add one with tools/parse_pdf.py.</div>`;
+    } else {
       box.innerHTML = papers.map((p) => {
         const mine = attempts.filter((a) => a.paperId === p.id);
         const best = mine.length ? Math.max(...mine.map((a) => a.score)) : null;
-        const prog = Store.get(Keys.progress(session.username, p.id));
-        const inProgress = prog && !prog.submitted && prog.endsAt > Date.now();
+        const prog = progress[p.id];
+        const inProgress = prog && prog.endsAt > Date.now();
         return `
           <div class="paper-card">
             <span class="year">${esc(p.year ?? "")}</span>
@@ -63,13 +66,12 @@
             </div>
           </div>`;
       }).join("");
-    })();
+    }
 
-    const hist = document.getElementById("history");
     if (!attempts.length) {
-      hist.innerHTML = `<div class="empty">No attempts yet. Finish a test and your results show up here.</div>`;
+      hist.innerHTML = `<div class="empty">No attempts yet. Finish a test and your results show up here, on any device you log in from.</div>`;
     } else {
-      const rows = [...attempts].sort((a, b) => b.submittedAt - a.submittedAt).map((a) => `
+      const rows = attempts.map((a) => `
         <tr>
           <td>${esc(a.title)}</td>
           <td>${fmtDate(a.submittedAt)}</td>

@@ -15,15 +15,19 @@
 
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
-  <script>
-    const session = Auth.require();
-    renderTopbar(session);
+  <script type="module">
+    import { requireUser, logout, getAttempt, friendlyError } from "./js/fb.js";
+
+    const user = await requireUser();
+    renderTopbar(user, logout);
     const LETTERS = ["a", "b", "c", "d"];
     const main = document.getElementById("main");
 
     (async () => {
-      const attempts = Store.get(Keys.attempts(session.username), []);
-      const attempt = attempts.find((a) => a.id === qs("attempt"));
+      let attempt = null;
+      try { attempt = await getAttempt(qs("attempt")); }
+      catch (e) { showFatal(main, "Could not load result: " + friendlyError(e)); return; }
+      const isMine = attempt && attempt.uid === user.uid;
       if (!attempt) {
         main.innerHTML = `<div class="empty">Result not found. <a href="papers.html">Back to papers</a></div>`;
         return;
@@ -47,7 +51,8 @@
         ${qs("auto") ? `<div class="empty" style="margin-bottom:14px; border-style:solid; background:#fff4d6; color:#7a5400">Time was up, so your test was submitted automatically.</div>` : ""}
         <div class="score-hero">
           <div>
-            <h2>${esc(paper.title)}</h2>
+            <h2>${esc(paper.title)}${!isMine ? ` &middot; ${esc(attempt.name)}` : ""}</h2>
+            ${!isMine ? `<div class="when">${esc(attempt.email)}</div>` : ""}
             <div class="when">Submitted ${fmtDate(attempt.submittedAt)} &middot; time taken ${fmtDuration(attempt.timeTaken)}</div>
           </div>
           <div style="text-align:right">
@@ -70,7 +75,7 @@
         </div>
 
         <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap">
-          <a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(paper.id)}">Retake test</a>
+          ${isMine ? `<a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(paper.id)}">Retake test</a>` : `<a class="btn btn-primary" href="admin.html">Back to admin</a>`}
           <a class="btn" href="papers.html">All papers</a>
         </div>
 

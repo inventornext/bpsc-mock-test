@@ -307,3 +307,19 @@ details.expl div { white-space: pre-line; margin-top: 8px; font-size: 14px; colo
   .q-text { font-size: 16px; }
   .brand span.full { display: none; }
 }
+
+/* ---------- login tabs ---------- */
+.tabs { display: flex; gap: 4px; background: #eef1f7; border-radius: 9px; padding: 4px; margin-bottom: 18px; }
+.tab { flex: 1; border: none; background: transparent; padding: 8px; border-radius: 7px; font-weight: 600; color: var(--muted); }
+.tab.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.small-link { text-align: center; margin: 14px 0 0; font-size: 13px; }
+.loading { color: var(--muted); padding: 40px; text-align: center; }
+.saving { font-size: 12px; color: #9fb0d6; min-width: 64px; text-align: right; }
+
+/* ---------- admin ---------- */
+.admin-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 18px 0 12px; }
+.admin-tools select, .admin-tools input {
+  padding: 8px 10px; border: 1px solid #cfd5e2; border-radius: 8px; font: inherit; background: #fff;
+}
+.admin-tools input { min-width: 220px; }
+table.history td .muted { color: var(--muted); font-size: 12px; display: block; }

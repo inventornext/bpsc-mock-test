@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Copy all of this into Firebase console > Firestore Database > Rules, then click Publish.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isMe(uid) { return signedIn() && request.auth.uid == uid; }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Admin list: only readable, created by hand in the console
+    match /admins/{uid} {
+      allow read: if isMe(uid);
+      allow write: if false;
+    }
+
+    // Student profile
+    match /users/{uid} {
+      allow read: if isMe(uid) || isAdmin();
+      allow create, update: if isMe(uid)
+        && request.resource.data.keys().hasOnly(['name', 'email', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 80;
+      allow delete: if isAdmin();
+
+      // Test in progress (answers + timer), one doc per paper
+      match /progress/{paperId} {
+        allow read, write: if isMe(uid);
+        allow read: if isAdmin();
+      }
+    }
+
+    // Submitted tests. Students add their own and can't edit them afterwards.
+    match /attempts/{attemptId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.answers is map
+        && request.resource.data.paperId is string;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+  }
+}

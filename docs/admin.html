@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <main class="container">
+    <h1 class="page-title">Admin</h1>
+    <p class="page-sub">Every student's results, from all devices.</p>
+
+    <div class="stats" id="summary"></div>
+
+    <h2 class="section-title">Students</h2>
+    <div id="students"><div class="loading">Loading...</div></div>
+
+    <h2 class="section-title">All attempts</h2>
+    <div class="admin-tools">
+      <input id="search" placeholder="Search name or email">
+      <select id="paperFilter"><option value="">All papers</option></select>
+      <button class="btn" id="csvBtn">Download CSV</button>
+    </div>
+    <div id="attempts"></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script type="module">
+    import { requireUser, logout, allAttempts, allUsers, deleteAttempt, friendlyError } from "./js/fb.js";
+
+    const user = await requireUser({ admin: true });
+    renderTopbar(user, logout);
+    document.title = `Admin | ${SITE.name}`;
+
+    let attempts = [], users = [];
+    try {
+      [attempts, users] = await Promise.all([allAttempts(), allUsers()]);
+    } catch (e) {
+      showFatal(document.getElementById("students"), "Could not load: " + friendlyError(e));
+      throw e;
+    }
+
+    // ---- summary ----
+    const avgPct = attempts.length ? attempts.reduce((t, a) => t + (a.score / a.max) * 100, 0) / attempts.length : 0;
+    document.getElementById("summary").innerHTML = `
+      <div class="stat"><b>${users.length}</b><span>Students signed up</span></div>
+      <div class="stat"><b>${new Set(attempts.map((a) => a.uid)).size}</b><span>Students who took a test</span></div>
+      <div class="stat"><b>${attempts.length}</b><span>Tests submitted</span></div>
+      <div class="stat"><b>${avgPct.toFixed(1)}%</b><span>Average score</span></div>`;
+
+    // ---- per student ----
+    const byUid = {};
+    users.forEach((u) => (byUid[u.uid] = { name: u.name, email: u.email, list: [] }));
+    attempts.forEach((a) => {
+      byUid[a.uid] ??= { name: a.name, email: a.email, list: [] };
+      byUid[a.uid].list.push(a);
+    });
+    const studentRows = Object.entries(byUid)
+      .map(([uid, s]) => {
+        const pcts = s.list.map((a) => (a.score / a.max) * 100);
+        const last = s.list.reduce((m, a) => Math.max(m, a.submittedAt), 0);
+        return { uid, ...s, count: s.list.length, best: pcts.length ? Math.max(...pcts) : null, avg: pcts.length ? pcts.reduce((x, y) => x + y, 0) / pcts.length : null, last };
+      })
+      .sort((a, b) => b.last - a.last);
+
+    document.getElementById("students").innerHTML = studentRows.length ? `
+      <div style="overflow-x:auto"><table class="history">
+        <thead><tr><th>Student</th><th>Tests</th><th>Best</th><th>Average</th><th>Last test</th><th></th></tr></thead>
+        <tbody>${studentRows.map((s) => `
+          <tr>
+            <td><b>${esc(s.name || "(no name)")}</b><span class="muted">${esc(s.email || "")}</span></td>
+            <td>${s.count}</td>
+            <td>${s.best !== null ? s.best.toFixed(1) + "%" : "-"}</td>
+            <td>${s.avg !== null ? s.avg.toFixed(1) + "%" : "-"}</td>
+            <td>${s.last ? fmtDate(s.last) : "-"}</td>
+            <td>${s.count ? `<a href="#" data-email="${esc(s.email || "")}" class="showStudent">Show tests</a>` : ""}</td>
+          </tr>`).join("")}</tbody>
+      </table></div>` : `<div class="empty">No students yet.</div>`;
+
+    document.getElementById("students").onclick = (e) => {
+      const a = e.target.closest(".showStudent");
+      if (!a) return;
+      e.preventDefault();
+      search.value = a.dataset.email;
+      drawAttempts();
+      document.getElementById("attempts").scrollIntoView({ behavior: "smooth" });
+    };
+
+    // ---- attempts ----
+    const papers = [...new Map(attempts.map((a) => [a.paperId, a.title])).entries()];
+    paperFilter.innerHTML += papers.map(([id, t]) => `<option value="${esc(id)}">${esc(t)}</option>`).join("");
+
+    function filtered() {
+      const q = search.value.trim().toLowerCase(), pf = paperFilter.value;
+      return attempts.filter((a) =>
+        (!pf || a.paperId === pf) &&
+        (!q || (a.name || "").toLowerCase().includes(q) || (a.email || "").toLowerCase().includes(q)));
+    }
+
+    function drawAttempts() {
+      const list = filtered();
+      document.getElementById("attempts").innerHTML = list.length ? `
+        <div style="overflow-x:auto"><table class="history">
+          <thead><tr><th>Student</th><th>Paper</th><th>Date</th><th>Score</th><th>Right / Wrong / Skipped</th><th>Time</th><th></th></tr></thead>
+          <tbody>${list.map((a) => `
+            <tr>
+              <td><b>${esc(a.name)}</b><span class="muted">${esc(a.email)}</span></td>
+              <td>${esc(a.title)}</td>
+              <td>${fmtDate(a.submittedAt)}${a.autoSubmitted ? `<span class="muted">time ran out</span>` : ""}</td>
+              <td><b>${fmtNum(a.score)}</b> / ${fmtNum(a.max)}</td>
+              <td>${a.correct} / ${a.wrong} / ${a.skipped}</td>
+              <td>${fmtDuration(a.timeTaken)}</td>
+              <td style="white-space:nowrap"><a href="result.html?attempt=${encodeURIComponent(a.id)}">View</a>
+                &nbsp; <a href="#" class="del" data-id="${esc(a.id)}" style="color:var(--red)">Delete</a></td>
+            </tr>`).join("")}</tbody>
+        </table></div>` : `<div class="empty">No attempts match.</div>`;
+    }
+    search.oninput = drawAttempts;
+    paperFilter.onchange = drawAttempts;
+    drawAttempts();
+
+    document.getElementById("attempts").onclick = async (e) => {
+      const d = e.target.closest(".del");
+      if (!d) return;
+      e.preventDefault();
+      if (!confirm("Delete this attempt? This can't be undone.")) return;
+      try {
+        await deleteAttempt(d.dataset.id);
+        attempts = attempts.filter((a) => a.id !== d.dataset.id);
+        drawAttempts();
+      } catch (err) { alert(friendlyError(err)); }
+    };
+
+    // ---- CSV ----
+    csvBtn.onclick = () => {
+      const head = ["Name", "Email", "Paper", "Date", "Score", "Max", "Percent", "Correct", "Wrong", "Skipped", "Time (min)"];
+      const rows = filtered().map((a) => [
+        a.name, a.email, a.title, new Date(a.submittedAt).toLocaleString(), a.score, a.max,
+        ((a.score / a.max) * 100).toFixed(1), a.correct, a.wrong, a.skipped, (a.timeTaken / 60).toFixed(1),
+      ]);
+      const csv = [head, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
+      link.download = `bpsc-results-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+    };
+  </script>
+</body>
+</html>
