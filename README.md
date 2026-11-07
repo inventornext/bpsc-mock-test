@@ -1,7 +1,7 @@
 # BPSC Mock Test
 
 A website for practising BPSC previous-year papers in real exam mode: login, timer, question palette, autosave and resume, then a scored result with every answer and explanation.
-
+https://inventornext.github.io/bpsc-mock-test/papers.html
 Python turns the PDFs into question files. The website is plain HTML/JS hosted free on GitHub Pages. Logins and results are stored in Firebase (free plan), so students can use any device and the admin page shows everyone's scores.
 
 ```
