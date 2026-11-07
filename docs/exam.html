@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exam | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===== Instructions screen ===== -->
+  <div id="instrScreen">
+    <header class="topbar" id="topbar"></header>
+    <main class="container">
+      <div class="instr-card">
+        <h2 id="instrTitle">Loading...</h2>
+        <div class="instr-facts" id="instrFacts"></div>
+
+        <h3>Instructions</h3>
+        <ol>
+          <li>The timer starts when you press <b>Start test</b>. When it reaches zero, the test submits automatically.</li>
+          <li>Click an option to choose it. Your answer is saved straight away.</li>
+          <li><b>Save &amp; Next</b> moves to the next question. <b>Mark for Review &amp; Next</b> flags the question so you can come back to it.</li>
+          <li>Questions that are answered and marked for review are still counted when scored.</li>
+          <li>Jump to any question from the palette on the right.</li>
+          <li>Closing the tab is safe. Open the paper again to resume with the time that was left.</li>
+          <li>Keyboard: <b>A-D</b> or <b>1-4</b> choose an option, <b>&rarr;</b> next, <b>&larr;</b> previous, <b>M</b> mark for review.</li>
+        </ol>
+
+        <h3>Question palette</h3>
+        <ul class="legend-list">
+          <li><span class="st">1</span> Not visited</li>
+          <li><span class="st not-answered">2</span> Not answered</li>
+          <li><span class="st answered">3</span> Answered</li>
+          <li><span class="st marked">4</span> Marked for review</li>
+          <li><span class="st answered-marked">5</span> Answered and marked (will be scored)</li>
+        </ul>
+
+        <label class="agree"><input type="checkbox" id="agree"> <span>I have read the instructions and am ready to begin.</span></label>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <a class="btn" href="papers.html">Back</a>
+          <button class="btn btn-primary" id="startBtn" disabled>Start test</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===== Exam screen ===== -->
+  <div id="examScreen" class="exam-body hidden">
+    <header class="topbar">
+      <div style="display:flex; align-items:center; gap:14px; min-width:0">
+        <span class="brand"><span class="brand-badge" id="examBadge">BPSC</span></span>
+        <span class="exam-head-title" id="examTitle"></span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="timer" id="timer"><small>Time left</small><span id="timeLeft">--:--:--</span></div>
+        <button class="btn btn-ghost palette-toggle" id="paletteToggle" aria-label="Show question palette">&#9776;</button>
+      </div>
+    </header>
+
+    <div class="exam-main">
+      <section class="q-area">
+        <div class="q-head">
+          <span class="qno" id="qNo">Question 1</span>
+          <span class="marks" id="qMarks"></span>
+        </div>
+        <div class="q-scroll" id="qScroll">
+          <p class="q-text" id="qText"></p>
+          <div class="options" id="qOptions"></div>
+        </div>
+        <div class="q-actions">
+          <div class="left">
+            <button class="btn btn-purple" id="markBtn">Mark for Review &amp; Next</button>
+            <button class="btn" id="clearBtn">Clear Response</button>
+          </div>
+          <div class="right">
+            <button class="btn" id="prevBtn">&larr; Previous</button>
+            <button class="btn btn-success" id="nextBtn">Save &amp; Next &rarr;</button>
+          </div>
+        </div>
+        <div class="kbd-hint">Shortcuts: A-D choose, &larr; &rarr; move, M mark. Answers save automatically.</div>
+      </section>
+
+      <aside class="side" id="side">
+        <div class="side-user">
+          <div class="avatar" id="avatar"></div>
+          <div><div class="uname" id="uname"></div><div class="usub" id="usub"></div></div>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="palette-wrap">
+          <div class="palette-title">Questions</div>
+          <div class="palette" id="palette"></div>
+        </div>
+        <div class="side-foot">
+          <button class="btn btn-danger" id="submitBtn">Submit Test</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ===== Submit modal ===== -->
+  <div class="modal-bg hidden" id="submitModal">
+    <div class="modal">
+      <h3>Submit the test?</h3>
+      <p>You can't change answers after submitting.</p>
+      <table id="submitSummary"></table>
+      <div class="btns">
+        <button class="btn" id="cancelSubmit">Keep working</button>
+        <button class="btn btn-danger" id="confirmSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/exam.js"></script>
+</body>
+</html>

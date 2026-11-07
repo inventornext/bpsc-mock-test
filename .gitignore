@@ -1,0 +1,9 @@
+# your source PDFs stay on your computer
+pdfs/
+
+# Python / PyCharm
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Result | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <main class="container" id="main">
+    <div class="empty">Loading result...</div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    const session = Auth.require();
+    renderTopbar(session);
+    const LETTERS = ["a", "b", "c", "d"];
+    const main = document.getElementById("main");
+
+    (async () => {
+      const attempts = Store.get(Keys.attempts(session.username), []);
+      const attempt = attempts.find((a) => a.id === qs("attempt"));
+      if (!attempt) {
+        main.innerHTML = `<div class="empty">Result not found. <a href="papers.html">Back to papers</a></div>`;
+        return;
+      }
+      let paper;
+      try {
+        paper = await loadJSON(`data/papers/${encodeURIComponent(attempt.paperId)}.json`);
+      } catch (e) {
+        main.innerHTML = `<div class="empty">Could not load the paper for this result.</div>`;
+        return;
+      }
+      document.title = `Result: ${paper.title} | ${SITE.name}`;
+
+      // re-score against the current answer key, in case the JSON was corrected later
+      const s = scoreAttempt(paper, attempt.answers);
+      const total = paper.questions.length;
+      const pct = (s.score / s.max) * 100;
+      const w = (n) => ((n / total) * 100).toFixed(2) + "%";
+
+      main.innerHTML = `
+        ${qs("auto") ? `<div class="empty" style="margin-bottom:14px; border-style:solid; background:#fff4d6; color:#7a5400">Time was up, so your test was submitted automatically.</div>` : ""}
+        <div class="score-hero">
+          <div>
+            <h2>${esc(paper.title)}</h2>
+            <div class="when">Submitted ${fmtDate(attempt.submittedAt)} &middot; time taken ${fmtDuration(attempt.timeTaken)}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="score-big">${fmtNum(s.score)} <small>/ ${fmtNum(s.max)}</small></div>
+            <div class="score-pct">${pct.toFixed(1)}%</div>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat c"><b>${s.correct}</b><span>Correct</span></div>
+          <div class="stat w"><b>${s.wrong}</b><span>Wrong</span></div>
+          <div class="stat s"><b>${s.skipped}</b><span>Not answered</span></div>
+          <div class="stat"><b>${s.accuracy.toFixed(1)}%</b><span>Accuracy (of attempted)</span></div>
+          ${s.bonus ? `<div class="stat"><b>${s.bonus}</b><span>Bonus (marks to all)</span></div>` : ""}
+        </div>
+        <div class="bar">
+          <i style="width:${w(s.correct)}; background:var(--green)"></i>
+          <i style="width:${w(s.wrong)}; background:var(--red)"></i>
+          <i style="width:${w(s.bonus)}; background:var(--amber)"></i>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap">
+          <a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(paper.id)}">Retake test</a>
+          <a class="btn" href="papers.html">All papers</a>
+        </div>
+
+        <div class="filters" id="filters">
+          <button class="chip active" data-f="all">All (${total})</button>
+          <button class="chip" data-f="c">Correct (${s.correct})</button>
+          <button class="chip" data-f="w">Wrong (${s.wrong})</button>
+          <button class="chip" data-f="s">Not answered (${s.skipped})</button>
+          <button class="chip" data-f="m">Marked (${Object.values(attempt.marked || {}).filter(Boolean).length})</button>
+          <button class="chip" id="expandAll" style="margin-left:auto">Show all explanations</button>
+        </div>
+        <div id="review"></div>`;
+
+      const review = document.getElementById("review");
+      review.innerHTML = paper.questions.map((q, i) => {
+        const mine = attempt.answers[q.id];
+        const kind = q.bonus ? "b" : !mine ? "s" : mine === q.answer ? "c" : "w";
+        const badge = { c: "Correct", w: "Wrong", s: "Not answered", b: "Bonus" }[kind];
+        const marked = attempt.marked && attempt.marked[q.id];
+        const opts = q.options.map((o, k) => {
+          const L = LETTERS[k];
+          let cls = "", tag = "";
+          if (L === q.answer) { cls = "correct"; tag = L === mine ? "Your answer, correct" : "Correct answer"; }
+          else if (L === mine) { cls = "wrong"; tag = "Your answer"; }
+          return `<div class="r-opt ${cls}"><span class="letter">${L.toUpperCase()}</span><span>${esc(o)}</span>${tag ? `<span class="tag">${tag}</span>` : ""}</div>`;
+        }).join("");
+        return `
+          <div class="review-q" data-k="${kind}" data-m="${marked ? 1 : 0}">
+            <div class="rq-head">
+              <span class="rq-no">Question ${i + 1}${marked ? " &middot; marked for review" : ""}</span>
+              <span class="badge ${kind}">${badge}</span>
+            </div>
+            <p class="q-text">${esc(q.question)}</p>
+            ${opts}
+            ${q.bonus ? `<p style="font-size:13px;color:#9a6a00;margin:6px 0 0">This question was dropped, so everyone gets the marks.</p>` : ""}
+            ${q.explanation ? `<details class="expl"><summary>Explanation</summary><div>${esc(q.explanation)}</div></details>` : ""}
+          </div>`;
+      }).join("");
+
+      document.getElementById("filters").onclick = (e) => {
+        const b = e.target.closest(".chip[data-f]");
+        if (!b) return;
+        document.querySelectorAll(".chip[data-f]").forEach((c) => c.classList.toggle("active", c === b));
+        const f = b.dataset.f;
+        review.querySelectorAll(".review-q").forEach((el) => {
+          const show = f === "all" || (f === "m" ? el.dataset.m === "1" : el.dataset.k === f);
+          el.classList.toggle("hidden", !show);
+        });
+      };
+
+      let open = false;
+      document.getElementById("expandAll").onclick = (e) => {
+        open = !open;
+        review.querySelectorAll("details.expl").forEach((d) => (d.open = open));
+        e.target.textContent = open ? "Hide all explanations" : "Show all explanations";
+      };
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+BPSC Prelims 1995: 5 question(s) to check by hand in bpsc_1995.json
+
+Q8: table/match question, check layout
+Match the column I and column II and select the correct code:
+Column I Column II
+(A) Nagananda 1. Banabhatta
+(B) Harshacharita 2. Harshavardhan
+(C) Tughlaqnama 3. Amir Khusro
+(D) Tuhfat-ul-muwahhidin 4. Raja Ram Mohan Roy
+(E) Neel Darpan 5. Abde Malik, Isami
+6. Deenbandhu Mitra
+Codes:
+A B C D E
+   (a) 1 2 3 4 5
+   (b) 2 1 5 3 4
+   (c) 1 2 3 5 6
+   (d) 2 1 3 4 6
+   answer: d
+
+Q20: table/match question, check layout
+Which among the following classes did not get influenced by Swadeshi Movement of 1905?
+(1) Woman (2) Peasants
+(3) Muslims (4) Intellectuals
+Codes:
+   (a) 1 and 2
+   (b) 1, 2 and 3
+   (c) 2 and 3
+   (d) 2 and 4
+   answer: c
+
+Q23: table/match question, check layout
+Select the correct sequence of events related to withdrawal of Non-Cooperation Movement:
+(1) Police firing at Chauri-Chaura
+(2) Police station set fire by agitated crowd
+(3) Withdrawal of Movement by Gandhiji
+(4) Arrest of Gandhiji
+Codes:
+   (a) 1, 2, 3 and 4
+   (b) 2, 1, 3 and 4
+   (c) 4, 1, 2 and 3
+   (d) 2, 1, 4 and 3
+   answer: a
+
+Q27: table/match question, check layout
+Consider the following statement and select the correct answer using the codes given below–
+Assertion (A): The Rashtriya Swayam Sevak Sangh was excluded from the Quit Indian Movement, in 1942.
+Reason (R): They thought that by this movement freedom of Indians would be delayed.
+Codes:
+   (a) Both (A) and (R) are true and (R) is the correct explanation of (A)
+   (b) Both (A) and (R) are true, but (R) is not the correct explanation of (A)
+   (c) (A) is true, but (R) is false
+   (d) (A) is false (R) is true
+   answer: c
+
+Q108: table/match question, check layout
+Consider the following statement and select the correct answer using the codes given below:
+Assertion (A): South Bihar is more developed than North Bihar.
+Reason (R): There are industries developed in South Bihar.
+Code:
+   (a) Both (A) and (R) are true and (R) is the correct explanation of (A)
+   (b) Both (A) and (R) are true and (R) is the correct explanation of (A)
+   (c) (A) is true, but (R) is false
+   (d) (A) is false, but (R) is true
+   answer: a
+

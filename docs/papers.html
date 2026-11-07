@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Papers | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <main class="container">
+    <h1 class="page-title" id="hello">Papers</h1>
+    <p class="page-sub">Pick a paper to start a timed test. Your answers save automatically, so you can close the tab and resume later.</p>
+
+    <div class="paper-grid" id="papers"><div class="empty">Loading papers...</div></div>
+
+    <h2 class="section-title">Your attempts</h2>
+    <div id="history"></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script>
+    const session = Auth.require();
+    renderTopbar(session);
+    document.title = `Papers | ${SITE.name}`;
+    document.getElementById("hello").textContent = `Welcome, ${session.name}`;
+
+    const attempts = Store.get(Keys.attempts(session.username), []);
+
+    (async () => {
+      const box = document.getElementById("papers");
+      let papers;
+      try {
+        papers = await loadJSON("data/papers.json");
+      } catch (e) {
+        box.innerHTML = `<div class="empty">Could not load papers. If you opened this file directly, run <b>python tools/serve.py</b> and use the link it prints.</div>`;
+        return;
+      }
+      if (!papers.length) {
+        box.innerHTML = `<div class="empty">No papers yet. Add one with tools/parse_pdf.py.</div>`;
+        return;
+      }
+      box.innerHTML = papers.map((p) => {
+        const mine = attempts.filter((a) => a.paperId === p.id);
+        const best = mine.length ? Math.max(...mine.map((a) => a.score)) : null;
+        const prog = Store.get(Keys.progress(session.username, p.id));
+        const inProgress = prog && !prog.submitted && prog.endsAt > Date.now();
+        return `
+          <div class="paper-card">
+            <span class="year">${esc(p.year ?? "")}</span>
+            <h3>${esc(p.title)}</h3>
+            <div class="paper-meta">
+              <span>${p.count} questions</span>
+              <span>${p.duration} min</span>
+              <span>+${fmtNum(p.marks)}${p.negative ? ` / -${fmtNum(p.negative)}` : ", no negative"}</span>
+            </div>
+            ${inProgress ? `<span class="resume-tag">In progress, ${fmtClock((prog.endsAt - Date.now()) / 1000)} left</span>` : ""}
+            <div class="best">${best !== null ? `Best: <b>${fmtNum(best)}</b> / ${fmtNum(p.count * p.marks)} (${mine.length} attempt${mine.length > 1 ? "s" : ""})` : `<span style="color:var(--muted)">Not attempted yet</span>`}</div>
+            <div class="actions">
+              <a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(p.id)}">${inProgress ? "Resume" : "Start test"}</a>
+            </div>
+          </div>`;
+      }).join("");
+    })();
+
+    const hist = document.getElementById("history");
+    if (!attempts.length) {
+      hist.innerHTML = `<div class="empty">No attempts yet. Finish a test and your results show up here.</div>`;
+    } else {
+      const rows = [...attempts].sort((a, b) => b.submittedAt - a.submittedAt).map((a) => `
+        <tr>
+          <td>${esc(a.title)}</td>
+          <td>${fmtDate(a.submittedAt)}</td>
+          <td><b>${fmtNum(a.score)}</b> / ${fmtNum(a.max)}</td>
+          <td>${a.correct} / ${a.wrong} / ${a.skipped}</td>
+          <td>${fmtDuration(a.timeTaken)}</td>
+          <td><a href="result.html?attempt=${encodeURIComponent(a.id)}">View</a></td>
+        </tr>`).join("");
+      hist.innerHTML = `
+        <div style="overflow-x:auto"><table class="history">
+          <thead><tr><th>Paper</th><th>Date</th><th>Score</th><th>Right / Wrong / Skipped</th><th>Time</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>`;
+    }
+  </script>
+</body>
+</html>
