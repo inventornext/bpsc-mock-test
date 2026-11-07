@@ -1,5 +1,14 @@
 [
   {
+    "id": "bpsc_1996",
+    "title": "BPSC Prelims 1996",
+    "year": 1996,
+    "duration": 120,
+    "count": 144,
+    "marks": 1,
+    "negative": 0
+  },
+  {
     "id": "bpsc_1995",
     "title": "BPSC Prelims 1995",
     "year": 1995,
