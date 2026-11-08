@@ -13,6 +13,8 @@
     <h1 class="page-title" id="hello">Papers</h1>
     <p class="page-sub">Pick a paper to start a timed test. Your answers save online as you go, so you can resume on any device.</p>
 
+    <div id="unlockBanner"></div>
+
     <div class="paper-grid" id="papers"><div class="empty">Loading papers...</div></div>
 
     <h2 class="section-title">Your attempts</h2>
@@ -22,7 +24,7 @@
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
   <script type="module">
-    import { requireUser, logout, myAttempts, listProgress, friendlyError } from "./js/fb.js";
+    import { requireUser, logout, myAttempts, listProgress, getPaperIndex, getMyPayment, friendlyError } from "./js/fb.js";
 
     const user = await requireUser();
     renderTopbar(user, logout);
@@ -31,10 +33,11 @@
 
     const box = document.getElementById("papers");
     const hist = document.getElementById("history");
-    let papers, attempts, progress;
+    let papers, attempts, progress, payment = null;
     try {
-      [papers, attempts, progress] = await Promise.all([
-        loadJSON("data/papers.json"), myAttempts(user.uid), listProgress(user.uid),
+      [papers, attempts, progress, payment] = await Promise.all([
+        getPaperIndex(), myAttempts(user.uid), listProgress(user.uid),
+        user.hasAccess ? null : getMyPayment(user.uid).catch(() => null),
       ]);
     } catch (e) {
       showFatal(box, "Could not load: " + friendlyError(e));
@@ -42,17 +45,38 @@
       throw e;
     }
 
+    // unlock banner for students who haven't paid
+    const lockedCount = papers.filter((p) => !p.free).length;
+    if (!user.hasAccess && lockedCount) {
+      const st = payment && payment.status;
+      document.getElementById("unlockBanner").innerHTML = `
+        <div class="unlock-banner ${st === "pending" ? "pending" : ""}">
+          <div>
+            ${st === "pending"
+              ? `<b>Payment received, waiting for approval.</b><span>We'll unlock all papers soon. You can keep using the free papers meanwhile.</span>`
+              : st === "rejected"
+              ? `<b>We couldn't confirm your payment.</b><span>Check the payment reference and send it again.</span>`
+              : `<b>Unlock all ${papers.length} papers for &#8377;${PAYMENT.price}</b><span>One-time payment, lifetime access. ${papers.length - lockedCount ? `${papers.length - lockedCount} free paper${papers.length - lockedCount > 1 ? "s" : ""} to try first.` : ""}</span>`}
+          </div>
+          <a class="btn ${st === "pending" ? "" : "btn-primary"}" href="buy.html">${st === "pending" ? "View status" : st === "rejected" ? "Send again" : "Unlock now"}</a>
+        </div>`;
+    }
+
     if (!papers.length) {
-      box.innerHTML = `<div class="empty">No papers yet. Add one with tools/parse_pdf.py.</div>`;
+      box.innerHTML = `<div class="empty">No papers yet.</div>`;
     } else {
       box.innerHTML = papers.map((p) => {
         const mine = attempts.filter((a) => a.paperId === p.id);
         const best = mine.length ? Math.max(...mine.map((a) => a.score)) : null;
         const prog = progress[p.id];
         const inProgress = prog && prog.endsAt > Date.now();
+        const locked = !p.free && !user.hasAccess;
         return `
-          <div class="paper-card">
-            <span class="year">${esc(p.year ?? "")}</span>
+          <div class="paper-card${locked ? " locked" : ""}">
+            <div style="display:flex; gap:6px; align-items:center">
+              <span class="year">${esc(p.year ?? "")}</span>
+              ${p.free ? `<span class="free-tag">Free</span>` : locked ? `<span class="lock-tag">&#128274; Locked</span>` : ""}
+            </div>
             <h3>${esc(p.title)}</h3>
             <div class="paper-meta">
               <span>${p.count} questions</span>
@@ -62,7 +86,9 @@
             ${inProgress ? `<span class="resume-tag">In progress, ${fmtClock((prog.endsAt - Date.now()) / 1000)} left</span>` : ""}
             <div class="best">${best !== null ? `Best: <b>${fmtNum(best)}</b> / ${fmtNum(p.count * p.marks)} (${mine.length} attempt${mine.length > 1 ? "s" : ""})` : `<span style="color:var(--muted)">Not attempted yet</span>`}</div>
             <div class="actions">
-              <a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(p.id)}">${inProgress ? "Resume" : "Start test"}</a>
+              ${locked
+                ? `<a class="btn" href="buy.html">Unlock &#8377;${PAYMENT.price}</a>`
+                : `<a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(p.id)}">${inProgress ? "Resume" : "Start test"}</a>`}
             </div>
           </div>`;
       }).join("");

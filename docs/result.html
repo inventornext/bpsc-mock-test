@@ -16,7 +16,7 @@
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
   <script type="module">
-    import { requireUser, logout, getAttempt, friendlyError } from "./js/fb.js";
+    import { requireUser, logout, getAttempt, getPaper, friendlyError } from "./js/fb.js";
 
     const user = await requireUser();
     renderTopbar(user, logout);
@@ -34,9 +34,13 @@
       }
       let paper;
       try {
-        paper = await loadJSON(`data/papers/${encodeURIComponent(attempt.paperId)}.json`);
+        paper = await getPaper(attempt.paperId);
       } catch (e) {
-        main.innerHTML = `<div class="empty">Could not load the paper for this result.</div>`;
+        main.innerHTML = `<div class="empty">Could not load the paper for this result: ${esc(friendlyError(e))}</div>`;
+        return;
+      }
+      if (!paper) {
+        main.innerHTML = `<div class="empty">This paper is no longer available.</div>`;
         return;
       }
       document.title = `Result: ${paper.title} | ${SITE.name}`;

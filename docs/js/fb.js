@@ -5,6 +5,10 @@
 //   users/{uid}/progress/{paper}  in-progress test (answers, timer)
 //   attempts/{attemptId}          submitted test, with uid, name, email
 //   admins/{uid}                  exists = this user is an admin (create it in the console)
+//   meta/papers                   { list: [...] } paper list shown on the papers page
+//   papers/{paperId}              full paper (uploaded by the Paper Manager)
+//   access/{uid}                  exists = this student has paid (set by admin)
+//   payments/{uid}                student's "I have paid" request with payment reference
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 import {
@@ -48,15 +52,23 @@ export function currentUser() {
 }
 
 async function buildUser(u) {
-  let isAdmin = false, name = u.displayName;
+  let isAdmin = false, paid = false, name = u.displayName;
   try {
-    const [a, p] = await Promise.all([getDoc(doc(db, "admins", u.uid)), getDoc(doc(db, "users", u.uid))]);
+    const [a, p, acc] = await Promise.all([
+      getDoc(doc(db, "admins", u.uid)),
+      getDoc(doc(db, "users", u.uid)),
+      getDoc(doc(db, "access", u.uid)),
+    ]);
     isAdmin = a.exists();
+    paid = acc.exists();
     if (p.exists() && p.data().name) name = p.data().name;
   } catch (e) {
     console.warn("profile load failed", e);
   }
-  return { uid: u.uid, email: u.email, name: name || u.email.split("@")[0], isAdmin };
+  return {
+    uid: u.uid, email: u.email, name: name || u.email.split("@")[0],
+    isAdmin, hasAccess: paid || isAdmin,
+  };
 }
 
 // For protected pages: sends visitors to the login page.
@@ -108,6 +120,82 @@ export function friendlyError(e) {
     "permission-denied": "Permission denied. Check that the Firestore rules were published.",
   };
   return map[code] || (e && e.message) || "Something went wrong.";
+}
+
+/* ---------------- papers ---------------- */
+
+// When the Paper Manager is running, the site on localhost shows your local
+// (unpublished) papers so you can preview edits. On the live site this is skipped.
+const IS_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
+async function localPreview(path) {
+  if (!IS_LOCAL) return undefined;
+  try {
+    const r = await fetch(`/api/preview/${path}`, { cache: "no-cache" });
+    if (r.ok && (r.headers.get("content-type") || "").includes("json")) return r.json();
+  } catch (e) {}
+  return undefined;
+}
+
+export async function getPaperIndex() {
+  const local = await localPreview("papers");
+  if (local !== undefined) return local;
+  const s = await getDoc(doc(db, "meta", "papers"));
+  return s.exists() ? s.data().list || [] : [];
+}
+
+// Returns the paper, or null if it doesn't exist or is locked for this user.
+export async function getPaper(id) {
+  const local = await localPreview(`paper/${encodeURIComponent(id)}`);
+  if (local !== undefined) return local;
+  try {
+    const s = await getDoc(doc(db, "papers", id));
+    return s.exists() ? s.data() : null;
+  } catch (e) {
+    if (e.code === "permission-denied") return null;
+    throw e;
+  }
+}
+
+/* ---------------- payments and access ---------------- */
+
+export async function getMyPayment(uid) {
+  const s = await getDoc(doc(db, "payments", uid));
+  return s.exists() ? s.data() : null;
+}
+
+export async function submitPayment(user, ref, method, amount) {
+  await setDoc(doc(db, "payments", user.uid), {
+    name: user.name, email: user.email, ref, method, amount,
+    createdAt: Date.now(), status: "pending",
+  });
+}
+
+// Admin only
+export async function listPayments() {
+  const s = await getDocs(collection(db, "payments"));
+  return s.docs.map((d) => ({ uid: d.id, ...d.data() })).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function listAccess() {
+  const s = await getDocs(collection(db, "access"));
+  const out = {};
+  s.forEach((d) => (out[d.id] = d.data()));
+  return out;
+}
+
+export async function grantAccess(uid, info = {}) {
+  await setDoc(doc(db, "access", uid), { grantedAt: Date.now(), ...info });
+  const p = await getDoc(doc(db, "payments", uid));
+  if (p.exists()) await setDoc(doc(db, "payments", uid), { ...p.data(), status: "approved", decidedAt: Date.now() });
+}
+
+export async function revokeAccess(uid) {
+  await deleteDoc(doc(db, "access", uid));
+}
+
+export async function rejectPayment(uid) {
+  const p = await getDoc(doc(db, "payments", uid));
+  if (p.exists()) await setDoc(doc(db, "payments", uid), { ...p.data(), status: "rejected", decidedAt: Date.now() });
 }
 
 /* ---------------- progress (in-progress tests) ---------------- */

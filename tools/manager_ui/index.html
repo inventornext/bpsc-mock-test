@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper Manager</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .card { background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px 22px; margin-bottom:18px; }
+    .card h2 { margin:0 0 4px; font-size:18px; }
+    .card p.hint { margin:0 0 14px; color:var(--muted); font-size:14px; }
+    .grid-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+    .grid-form .wide { grid-column:1 / -1; }
+    .field input, .field select, .field textarea { width:100%; padding:9px 11px; border:1px solid #cfd5e2; border-radius:8px; font:inherit; background:#fff; }
+    .field textarea { resize:vertical; line-height:1.5; }
+    .field input:focus, .field textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.15); }
+    .drop { border:2px dashed #c3cbe0; border-radius:10px; padding:22px; text-align:center; background:#f8faff; cursor:pointer; }
+    .drop.over { border-color:var(--accent); background:#eef4ff; }
+    .drop b { color:var(--accent); }
+    .log { background:#0f1a33; color:#cfe0ff; font-family:Consolas, monospace; font-size:13px; border-radius:8px; padding:12px 14px; white-space:pre-wrap; margin-top:12px; max-height:260px; overflow:auto; }
+    .row-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+    .warn-badge { background:#fff4d6; color:#9a6a00; font-weight:700; font-size:12px; padding:3px 9px; border-radius:20px; }
+    .ok-badge { background:var(--green-bg); color:var(--green); font-weight:700; font-size:12px; padding:3px 9px; border-radius:20px; }
+    .msg-ok { color:var(--green); font-weight:600; }
+    .msg-err { color:var(--red); font-weight:600; }
+
+    /* editor */
+    .ed-head { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .ed-head .field { margin:0; }
+    .ed-wrap { display:grid; grid-template-columns:270px 1fr; gap:18px; align-items:start; }
+    .qlist { position:sticky; top:12px; }
+    .qgrid { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; max-height:65vh; overflow:auto; padding:2px; }
+    .qbtn { height:34px; border:1px solid var(--line); background:#fff; border-radius:6px; font-weight:700; font-size:13px; }
+    .qbtn.flag { background:#fff4d6; border-color:#f0cf7a; color:#7a5400; }
+    .qbtn.noans { background:var(--red-bg); border-color:#f0b0b0; color:var(--red); }
+    .qbtn.cur { outline:2.5px solid var(--accent); outline-offset:1px; }
+    .issues { background:#fff4d6; color:#7a5400; border-radius:8px; padding:8px 12px; font-size:14px; margin-bottom:12px; }
+    .opt-row { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+    .opt-row input[type=radio] { width:18px; height:18px; accent-color:var(--green); flex:0 0 auto; }
+    .opt-row .l { font-weight:700; width:18px; color:var(--muted); }
+    .opt-row input[type=text] { flex:1; padding:8px 10px; border:1px solid #cfd5e2; border-radius:8px; font:inherit; }
+    .opt-row input[type=text]:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(47,111,237,.15); }
+    .preview { background:#f7f9fc; border:1px solid var(--line); border-radius:8px; padding:14px; white-space:pre-line; font-size:15px; }
+    .sticky-save { position:sticky; bottom:0; background:var(--bg); padding:12px 0; display:flex; gap:10px; align-items:center; border-top:1px solid var(--line); margin-top:10px; }
+    @media (max-width:860px) { .ed-wrap { grid-template-columns:1fr; } .qlist { position:static; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand"><span class="brand-badge">BPSC</span> Paper Manager</span>
+    <div class="user">
+      <a class="btn btn-ghost" href="/" target="_blank">Open site preview</a>
+    </div>
+  </header>
+
+  <!-- ===================== HOME ===================== -->
+  <main class="container" id="home">
+    <div class="card">
+      <h2>1. Add a paper</h2>
+      <p class="hint">Choose a PDF in the usual two-column layout (questions first, then "Option (x) is correct" answers).</p>
+
+      <label class="drop" id="drop">
+        <input type="file" id="pdf" accept="application/pdf" hidden>
+        <div id="dropText"><b>Browse for a PDF</b> or drag it here</div>
+      </label>
+
+      <div class="grid-form" style="margin-top:14px">
+        <div class="field"><label>Year</label><input id="year" type="number" min="1950" max="2100" placeholder="e.g. 1995"></div>
+        <div class="field"><label>Duration (minutes)</label><input id="duration" type="number" value="120" min="1"></div>
+        <div class="field"><label>Marks per correct</label><input id="marks" type="number" value="1" step="0.25"></div>
+        <div class="field"><label>Negative per wrong</label><input id="negative" type="number" value="0" step="0.01"></div>
+        <div class="field wide"><label>Title shown on site</label><input id="title" placeholder="BPSC Prelims 1995"></div>
+        <div class="field"><label>Paper id (file name)</label><input id="pid" placeholder="bpsc_1995"></div>
+      </div>
+
+      <div class="row-actions">
+        <button class="btn btn-primary" id="convertBtn">Convert paper</button>
+        <span id="convertMsg"></span>
+      </div>
+      <div class="log hidden" id="convertLog"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Your papers</h2>
+      <p class="hint">Click <b>Check &amp; edit</b> to fix flagged questions. Tick <b>Free</b> for papers anyone can try without paying. <b>Preview</b> opens your local copy of the site (it shows unpublished edits).</p>
+      <div id="papers"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div class="card">
+      <h2>3. Publish to your website</h2>
+      <p class="hint">Uploads changed papers to Firebase (live straight away) and pushes any website code changes to GitHub.</p>
+      <div id="fbStatus" class="hint"></div>
+      <div id="gitStatus" class="hint"></div>
+      <div class="field"><label>What changed (commit message)</label><input id="commitMsg" value="Update site"></div>
+      <div class="row-actions">
+        <button class="btn btn-success" id="publishBtn">Publish</button>
+        <span id="publishMsg"></span>
+      </div>
+      <div class="log hidden" id="publishLog"></div>
+    </div>
+  </main>
+
+  <!-- ===================== EDITOR ===================== -->
+  <main class="container hidden" id="editor">
+    <div class="card">
+      <div class="ed-head">
+        <button class="btn" id="backBtn">&larr; Back</button>
+        <div class="field" style="flex:2; min-width:220px"><label>Title</label><input id="eTitle"></div>
+        <div class="field" style="width:90px"><label>Year</label><input id="eYear" type="number"></div>
+        <div class="field" style="width:100px"><label>Minutes</label><input id="eDuration" type="number"></div>
+        <div class="field" style="width:90px"><label>+ Marks</label><input id="eMarks" type="number" step="0.25"></div>
+        <div class="field" style="width:100px"><label>- Negative</label><input id="eNegative" type="number" step="0.01"></div>
+        <label style="display:flex; gap:8px; align-items:center; font-size:14px; padding-bottom:10px">
+          <input type="checkbox" id="eFree"> Free sample
+        </label>
+      </div>
+    </div>
+
+    <div class="ed-wrap">
+      <div class="card qlist">
+        <label style="display:flex; gap:8px; align-items:center; font-size:14px; margin-bottom:10px">
+          <input type="checkbox" id="onlyFlagged"> Only show questions to check
+        </label>
+        <div class="hint" id="flagCount" style="font-size:13px; margin-bottom:10px"></div>
+        <div class="qgrid" id="qgrid"></div>
+        <p class="hint" style="font-size:12px; margin-top:10px">Yellow = check this. Red = no answer.</p>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+          <h2 id="eQno">Question</h2>
+          <div style="display:flex; gap:8px">
+            <button class="btn" id="prevQ">&larr; Prev</button>
+            <button class="btn" id="nextQ">Next &rarr;</button>
+          </div>
+        </div>
+        <div class="issues hidden" id="eIssues"></div>
+
+        <div class="field"><label>Question text (press Enter for a new line)</label><textarea id="eQuestion" rows="6"></textarea></div>
+
+        <label style="font-size:13px; font-weight:600; color:#3a4357">Options (tick the correct one)</label>
+        <div id="eOptions" style="margin-top:6px"></div>
+        <label style="display:flex; gap:8px; align-items:center; font-size:14px; margin:6px 0 14px">
+          <input type="checkbox" id="eBonus"> Bonus / dropped question (everyone gets the marks)
+        </label>
+
+        <div class="field"><label>Explanation</label><textarea id="eExplanation" rows="6"></textarea></div>
+
+        <label style="font-size:13px; font-weight:600; color:#3a4357">How students will see it</label>
+        <div class="preview" id="ePreview"></div>
+
+        <div class="row-actions">
+          <label style="display:flex; gap:8px; align-items:center; font-size:14px">
+            <input type="checkbox" id="eChecked"> I've checked this question, it looks right
+          </label>
+          <button class="btn btn-danger" id="delQ" style="margin-left:auto">Delete this question</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sticky-save">
+      <button class="btn btn-primary" id="saveBtn">Save paper</button>
+      <span id="saveMsg" class="hint" style="margin:0"></span>
+    </div>
+  </main>
+
+  <script src="/js/common.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

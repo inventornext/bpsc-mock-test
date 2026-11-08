@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unlock all papers | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <main class="container" style="max-width:920px">
+    <h1 class="page-title">Unlock all papers</h1>
+    <p class="page-sub">Pay once, practise every paper for life.</p>
+
+    <div id="status"></div>
+
+    <div class="buy-grid" id="buyGrid">
+      <!-- left: what you get + pay -->
+      <div class="instr-card">
+        <div><span class="step-no">1</span><b>Pay</b></div>
+        <div class="price" id="price"></div>
+        <ul class="ticks" id="ticks"></ul>
+        <div id="payOptions"></div>
+      </div>
+
+      <!-- right: confirm -->
+      <div class="instr-card">
+        <div><span class="step-no">2</span><b>Tell us you've paid</b></div>
+        <p style="color:var(--muted); font-size:14px">
+          After paying, enter the payment reference below. We check it and unlock your account,
+          usually within a few hours.
+        </p>
+        <form id="confirmForm">
+          <div class="field">
+            <label for="method">Paid with</label>
+            <select id="method" style="width:100%; padding:10px 12px; border:1px solid #cfd5e2; border-radius:8px; font:inherit">
+              <option value="upi">UPI app (GPay, PhonePe, Paytm...)</option>
+              <option value="razorpay">Razorpay payment page</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="ref" id="refLabel">UPI transaction ID / UTR (12 digits)</label>
+            <input id="ref" required minlength="4" maxlength="100" placeholder="e.g. 431298765432" autocomplete="off">
+          </div>
+          <p style="font-size:13px; color:var(--muted); margin-top:-4px" id="refHelp">
+            Find it in your UPI app's payment history: open the payment and look for "UPI transaction ID" or "UTR".
+          </p>
+          <button class="btn btn-primary" type="submit" style="width:100%">I've paid, unlock my account</button>
+          <div class="error" id="formMsg"></div>
+        </form>
+      </div>
+    </div>
+
+    <p style="margin-top:22px; font-size:14px; color:var(--muted)" id="help"></p>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/vendor/qrcode.js"></script>
+  <script type="module">
+    import { requireUser, logout, getPaperIndex, getMyPayment, submitPayment, friendlyError } from "./js/fb.js";
+
+    const user = await requireUser();
+    renderTopbar(user, logout);
+    document.title = `Unlock all papers | ${SITE.name}`;
+
+    const $ = (id) => document.getElementById(id);
+    const price = PAYMENT.price;
+
+    // ---- already paid ----
+    if (user.hasAccess) {
+      $("status").innerHTML = `<div class="status-box approved"><b>You have full access.</b> Every paper is unlocked. <a href="papers.html">Go to papers</a></div>`;
+      $("buyGrid").classList.add("hidden");
+    }
+
+    // ---- what you get ----
+    let papers = [];
+    try { papers = await getPaperIndex(); } catch (e) {}
+    const free = papers.filter((p) => p.free).length;
+    $("price").innerHTML = `&#8377;${price} <small>one time</small>`;
+    $("ticks").innerHTML = `
+      <li>All ${papers.length || ""} previous year papers${free ? ` (${papers.length - free} locked now)` : ""}</li>
+      <li>New papers added later, at no extra cost</li>
+      <li>Real exam timer, palette and auto-submit</li>
+      <li>Score, explanations and progress on any device</li>`;
+
+    // ---- pay options ----
+    const opts = [];
+    if (PAYMENT.upiId) {
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(PAYMENT.upiId)}&pn=${encodeURIComponent(PAYMENT.upiName || SITE.name)}`
+        + `&am=${price}&cu=INR&tn=${encodeURIComponent(`${SITE.short} ${user.email}`.slice(0, 50))}`;
+      let qrSvg = "";
+      try {
+        const qr = qrcode(0, "M");
+        qr.addData(upiUrl);
+        qr.make();
+        qrSvg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+      } catch (e) { console.warn(e); }
+      opts.push(`
+        <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:6px">
+          <b>Pay by UPI</b>
+          <p style="font-size:14px; color:var(--muted); margin:4px 0 0">Scan with any UPI app, or tap the button on your phone.</p>
+          <div class="qr-box">${qrSvg}</div>
+          <a class="btn btn-success" href="${upiUrl}" style="width:100%">Open UPI app and pay &#8377;${price}</a>
+          <p style="font-size:13px; margin:10px 0 0">UPI ID: <span class="upi-id">${esc(PAYMENT.upiId)}</span> &middot; amount &#8377;${price}</p>
+        </div>`);
+    }
+    if (PAYMENT.razorpayLink) {
+      opts.push(`
+        <div style="border-top:1px solid var(--line); padding-top:14px; margin-top:14px">
+          <b>Pay by card, netbanking or UPI (Razorpay)</b>
+          <p style="font-size:14px; color:var(--muted); margin:4px 0 10px">Use the same email you log in with: <b>${esc(user.email)}</b></p>
+          <a class="btn btn-primary" href="${esc(PAYMENT.razorpayLink)}" target="_blank" rel="noopener" style="width:100%">Pay &#8377;${price} securely</a>
+        </div>`);
+    }
+    $("payOptions").innerHTML = opts.length ? opts.join("") :
+      `<div class="empty">Payments aren't set up yet. Please check back soon.</div>`;
+    if (!PAYMENT.upiId && PAYMENT.razorpayLink) $("method").value = "razorpay";
+    if (!PAYMENT.razorpayLink) $("method").querySelector('option[value="razorpay"]').remove();
+    if (!PAYMENT.upiId && PAYMENT.razorpayLink) $("method").querySelector('option[value="upi"]').remove();
+
+    function updateRefHelp() {
+      const rz = $("method").value === "razorpay";
+      $("refLabel").textContent = rz ? "Razorpay payment ID (starts with pay_)" : "UPI transaction ID / UTR (12 digits)";
+      $("ref").placeholder = rz ? "e.g. pay_NbX9w2Yk7aB3cD" : "e.g. 431298765432";
+      $("refHelp").textContent = rz
+        ? "It's on the Razorpay success screen and in the receipt email."
+        : `Find it in your UPI app's payment history: open the payment and look for "UPI transaction ID" or "UTR".`;
+    }
+    $("method").onchange = updateRefHelp;
+    updateRefHelp();
+
+    if (PAYMENT.contact) $("help").innerHTML = `Need help? Contact <b>${esc(PAYMENT.contact)}</b> with your login email.`;
+
+    // ---- current request status ----
+    function showStatus(p) {
+      if (!p || user.hasAccess) return;
+      const when = fmtDate(p.createdAt);
+      const box = {
+        pending: `<div class="status-box pending"><b>Payment sent for checking.</b> Reference <b>${esc(p.ref)}</b>, sent ${when}. We'll unlock your account soon. You can send it again below if you made a typo.</div>`,
+        rejected: `<div class="status-box rejected"><b>We couldn't match this payment.</b> Reference <b>${esc(p.ref)}</b>. Check the reference and send it again${PAYMENT.contact ? `, or contact ${esc(PAYMENT.contact)}` : ""}.</div>`,
+        approved: `<div class="status-box approved"><b>Approved.</b> Log out and in again if papers still look locked.</div>`,
+      }[p.status] || "";
+      $("status").innerHTML = box;
+    }
+    try { showStatus(await getMyPayment(user.uid)); } catch (e) {}
+
+    // ---- submit ----
+    $("confirmForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const ref = $("ref").value.trim().replace(/\s+/g, "");
+      const msg = $("formMsg");
+      msg.textContent = ""; msg.style.color = "";
+      if (ref.length < 4) { msg.textContent = "Enter the payment reference."; return; }
+      const btn = e.submitter || $("confirmForm").querySelector("button");
+      btn.disabled = true;
+      try {
+        await submitPayment(user, ref, $("method").value, price);
+        msg.style.color = "var(--green)";
+        msg.textContent = "Thanks! We'll check and unlock your account soon.";
+        showStatus({ ref, status: "pending", createdAt: Date.now() });
+        $("ref").value = "";
+      } catch (err) {
+        msg.textContent = friendlyError(err);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

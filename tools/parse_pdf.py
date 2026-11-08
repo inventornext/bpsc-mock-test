@@ -7,8 +7,8 @@ Usage (from the project root):
     python tools/parse_pdf.py pdfs/BPSC_Paper_1995.pdf --year 1995 --title "BPSC Prelims 1995" --duration 120
 
 Output:
-    docs/data/papers/<id>.json   the paper
-    docs/data/papers.json        index of all papers (rebuilt every run)
+    papers/<id>.json             the paper (kept on your computer, uploaded to
+                                 Firebase by the Paper Manager's Publish button)
     review/<id>_review.txt       questions the parser was unsure about
 """
 
@@ -21,8 +21,8 @@ from pathlib import Path
 import pdfplumber
 
 ROOT = Path(__file__).resolve().parent.parent
-PAPERS_DIR = ROOT / "docs" / "data" / "papers"
-INDEX_FILE = ROOT / "docs" / "data" / "papers.json"
+PAPERS_DIR = ROOT / "papers"          # not uploaded to GitHub (see .gitignore)
+OLD_DATA_DIR = ROOT / "docs" / "data" # where papers used to live (public)
 REVIEW_DIR = ROOT / "review"
 
 # Lines to throw away (running headers, footers, page numbers)
@@ -234,9 +234,32 @@ def parse_answers(lines):
     return out
 
 
+def migrate_old_layout(log=print):
+    """Move papers from the old public docs/data folder into papers/ (one time)."""
+    old = OLD_DATA_DIR / "papers"
+    if not old.exists():
+        return
+    PAPERS_DIR.mkdir(exist_ok=True)
+    for f in old.glob("*.json"):
+        dest = PAPERS_DIR / f.name
+        if not dest.exists():
+            f.replace(dest)
+            log(f"Moved {f.name} to papers/")
+        else:
+            f.unlink()
+    import shutil
+    shutil.rmtree(OLD_DATA_DIR, ignore_errors=True)
+
+
+def paper_files():
+    return sorted(f for f in PAPERS_DIR.glob("*.json") if not f.name.startswith(("_", ".")))
+
+
 def rebuild_index():
+    """List of papers (without questions) for the papers page."""
+    PAPERS_DIR.mkdir(exist_ok=True)
     papers = []
-    for f in sorted(PAPERS_DIR.glob("*.json")):
+    for f in paper_files():
         d = json.loads(f.read_text(encoding="utf-8"))
         papers.append({
             "id": d["id"],
@@ -246,31 +269,41 @@ def rebuild_index():
             "count": len(d["questions"]),
             "marks": d.get("marks", 1),
             "negative": d.get("negative", 0),
+            "free": bool(d.get("free", False)),
         })
     papers.sort(key=lambda p: (p.get("year") or 0), reverse=True)
-    INDEX_FILE.write_text(json.dumps(papers, indent=2, ensure_ascii=False), encoding="utf-8")
     return papers
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("pdf", help="path to the paper PDF")
-    ap.add_argument("--year", type=int, required=True)
-    ap.add_argument("--id", help="file id, default bpsc_<year>")
-    ap.add_argument("--title", help='default "BPSC Prelims <year>"')
-    ap.add_argument("--duration", type=int, default=120, help="minutes (default 120)")
-    ap.add_argument("--marks", type=float, default=1, help="marks per correct answer")
-    ap.add_argument("--negative", type=float, default=0, help="marks cut per wrong answer")
-    args = ap.parse_args()
+def check_question(q):
+    """Return a list of reasons this question may need a hand fix."""
+    issues = []
+    opts = q.get("options") or []
+    if len(opts) != 4:
+        issues.append(f"found {len(opts)} options")
+    if any(not str(o).strip() for o in opts):
+        issues.append("empty option")
+    if not q.get("answer") and not q.get("bonus"):
+        issues.append("no answer")
+    if q.get("checked"):
+        return issues   # marked as checked in the Paper Manager: skip the soft warnings
+    if len(q.get("question", "")) < 10:
+        issues.append("very short question text")
+    if re.search(r"Column|Codes?:|A\s+B\s+C\s+D", q.get("question", "")):
+        issues.append("table/match question, check layout")
+    if len(set(str(o).strip().lower() for o in opts)) < len(opts):
+        issues.append("two options are the same")
+    return issues
 
-    pdf_path = Path(args.pdf)
-    if not pdf_path.exists():
-        sys.exit(f"File not found: {pdf_path}")
 
-    paper_id = args.id or f"bpsc_{args.year}"
-    title = args.title or f"BPSC Prelims {args.year}"
+def convert(pdf_path, year, paper_id=None, title=None, duration=120, marks=1, negative=0, log=print):
+    """Parse a PDF and write the paper JSON. Returns (paper, problems, out_file)."""
+    pdf_path = Path(pdf_path)
+    migrate_old_layout(log)
+    paper_id = paper_id or f"bpsc_{year}"
+    title = title or f"BPSC Prelims {year}"
 
-    print(f"Reading {pdf_path.name} ...")
+    log(f"Reading {pdf_path.name} ...")
     q_lines, a_lines, in_answers = [], [], False
     for col in page_columns_text(pdf_path):
         if not in_answers and ANSWER_SECTION_MARK.search(col):
@@ -286,11 +319,13 @@ def main():
 
     questions = parse_questions(q_lines)
     answers = parse_answers(a_lines)
+    if not questions:
+        raise ValueError("No questions found. Is this a text PDF in the usual two-column layout?")
 
-    problems = []
     def fix(t):
         return re.sub(r"`\s*(?=\d)", "\u20b9", t)   # this font draws the rupee sign as `
 
+    problems = []
     for q in questions:
         a = answers.get(q["id"])
         q["answer"] = a["answer"] if a else None
@@ -300,17 +335,7 @@ def main():
         q["explanation"] = fix(q["explanation"])
         if a and a["bonus"]:
             q["bonus"] = True   # dropped question: everyone gets the marks
-        issues = []
-        if len(q["options"]) != 4:
-            issues.append(f"found {len(q['options'])} options")
-        if not q["answer"] and not q.get("bonus"):
-            issues.append("no answer found")
-        if any(len(o) == 0 for o in q["options"]):
-            issues.append("empty option")
-        if len(q["question"]) < 10:
-            issues.append("very short question text")
-        if re.search(r"Column|Codes?:|A\s+B\s+C\s+D", q["question"]):
-            issues.append("table/match question, check layout")
+        issues = check_question(q)
         if issues:
             problems.append((q, issues))
 
@@ -320,10 +345,11 @@ def main():
     paper = {
         "id": paper_id,
         "title": title,
-        "year": args.year,
-        "duration": args.duration,
-        "marks": args.marks,
-        "negative": args.negative,
+        "year": year,
+        "duration": duration,
+        "marks": marks,
+        "negative": negative,
+        "free": False,
         "questions": questions,
     }
     out_file = PAPERS_DIR / f"{paper_id}.json"
@@ -338,13 +364,31 @@ def main():
                 f.write(f"   ({letter}) {o}\n")
             f.write(f"   answer: {q['answer']}\n\n")
 
-    papers = rebuild_index()
+    rebuild_index()
+    log(f"Questions found : {len(questions)}")
+    log(f"Answers found   : {len(answers)}")
+    log(f"Need checking   : {len(problems)}  (see {review_file.relative_to(ROOT)})")
+    log(f"Saved           : {out_file.relative_to(ROOT)}")
+    return paper, problems, out_file
 
-    print(f"Questions found : {len(questions)}")
-    print(f"Answers found   : {len(answers)}")
-    print(f"Need checking   : {len(problems)}  (see {review_file.relative_to(ROOT)})")
-    print(f"Saved           : {out_file.relative_to(ROOT)}")
-    print(f"Papers in index : {len(papers)}")
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("pdf", help="path to the paper PDF")
+    ap.add_argument("--year", type=int, required=True)
+    ap.add_argument("--id", help="file id, default bpsc_<year>")
+    ap.add_argument("--title", help='default "BPSC Prelims <year>"')
+    ap.add_argument("--duration", type=int, default=120, help="minutes (default 120)")
+    ap.add_argument("--marks", type=float, default=1, help="marks per correct answer")
+    ap.add_argument("--negative", type=float, default=0, help="marks cut per wrong answer")
+    args = ap.parse_args()
+
+    if not Path(args.pdf).exists():
+        sys.exit(f"File not found: {args.pdf}")
+    try:
+        convert(args.pdf, args.year, args.id, args.title, args.duration, args.marks, args.negative)
+    except ValueError as e:
+        sys.exit(str(e))
 
 
 if __name__ == "__main__":

@@ -1,5 +1,13 @@
 # your source PDFs stay on your computer
-pdfs/
+/pdfs/
+
+# papers live in Firebase; the local copies are not made public on GitHub
+/papers/
+/review/
+
+# Firebase admin key: NEVER upload this
+serviceAccount.json
+*firebase-adminsdk*.json
 
 # Python / PyCharm
 __pycache__/

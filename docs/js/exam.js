@@ -3,7 +3,7 @@
 // so a test can be resumed on another device.
 
 import {
-  requireUser, logout, loadProgress, saveProgress, clearProgress, saveAttempt, friendlyError,
+  requireUser, logout, loadProgress, saveProgress, clearProgress, saveAttempt, getPaper, friendlyError,
 } from "./fb.js";
 
 const user = await requireUser();
@@ -52,9 +52,14 @@ window.addEventListener("online", () => { dirty = true; flush(); });
   if (!paperId) { location.replace("papers.html"); return; }
 
   try {
-    paper = await loadJSON(`data/papers/${encodeURIComponent(paperId)}.json`);
+    paper = await getPaper(paperId);
   } catch (e) {
-    $("instrTitle").textContent = "Could not load this paper.";
+    $("instrTitle").textContent = "Could not load this paper: " + friendlyError(e);
+    return;
+  }
+  if (!paper) {
+    // locked (not paid) or doesn't exist
+    location.replace(user.hasAccess ? "papers.html" : "buy.html");
     return;
   }
   document.title = `${paper.title} | ${SITE.name}`;

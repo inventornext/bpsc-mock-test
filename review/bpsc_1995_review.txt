@@ -1,4 +1,4 @@
-BPSC Prelims 1995: 5 question(s) to check by hand in bpsc_1995.json
+BPSC Prelims 1995: 6 question(s) to check by hand in bpsc_1995.json
 
 Q8: table/match question, check layout
 Match the column I and column II and select the correct code:
@@ -52,7 +52,7 @@ Codes:
    (d) (A) is false (R) is true
    answer: c
 
-Q108: table/match question, check layout
+Q108: table/match question, check layout, two options are the same
 Consider the following statement and select the correct answer using the codes given below:
 Assertion (A): South Bihar is more developed than North Bihar.
 Reason (R): There are industries developed in South Bihar.
@@ -62,4 +62,12 @@ Code:
    (c) (A) is true, but (R) is false
    (d) (A) is false, but (R) is true
    answer: a
+
+Q126: two options are the same
+In the Union Budget of 1995-96, the allocation of family welfare services directly to rural areas is proposed:
+   (a) ₹267 crore
+   (b) ₹627 crore
+   (c) ₹726 crore
+   (d) ₹726 crore
+   answer: c
 

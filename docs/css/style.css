@@ -323,3 +323,33 @@ details.expl div { white-space: pre-line; margin-top: 8px; font-size: 14px; colo
 }
 .admin-tools input { min-width: 220px; }
 table.history td .muted { color: var(--muted); font-size: 12px; display: block; }
+
+/* ---------- paid access ---------- */
+.unlock-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  background: linear-gradient(135deg, #fff8e6, #fff1cc); border: 1px solid #f0d58a; border-radius: var(--radius);
+  padding: 16px 20px; margin-bottom: 20px;
+}
+.unlock-banner.pending { background: #eef4ff; border-color: #c7d8fb; }
+.unlock-banner b { display: block; font-size: 16px; }
+.unlock-banner span { color: #5c6478; font-size: 14px; }
+.free-tag { font-size: 12px; font-weight: 700; color: var(--green); background: var(--green-bg); padding: 2px 8px; border-radius: 20px; }
+.lock-tag { font-size: 12px; font-weight: 700; color: #7a5400; background: #fff4d6; padding: 2px 8px; border-radius: 20px; }
+.paper-card.locked h3 { color: #4a5368; }
+
+.buy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 760px) { .buy-grid { grid-template-columns: 1fr; } }
+.price { font-size: 42px; font-weight: 800; line-height: 1; margin: 6px 0; }
+.price small { font-size: 15px; color: var(--muted); font-weight: 600; }
+.ticks { list-style: none; padding: 0; margin: 14px 0; }
+.ticks li { padding: 5px 0 5px 26px; position: relative; }
+.ticks li::before { content: "\2713"; position: absolute; left: 4px; color: var(--green); font-weight: 800; }
+.qr-box { display: flex; justify-content: center; margin: 12px 0; }
+.qr-box img, .qr-box svg { width: 200px; height: 200px; border: 8px solid #fff; box-shadow: var(--shadow); border-radius: 8px; }
+.upi-id { font-family: Consolas, monospace; background: #f3f5f9; padding: 6px 10px; border-radius: 6px; user-select: all; }
+.step-no { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 13px; margin-right: 8px; }
+.status-box { border-radius: var(--radius); padding: 16px 18px; margin-bottom: 18px; }
+.status-box.pending { background: #eef4ff; border: 1px solid #c7d8fb; }
+.status-box.approved { background: var(--green-bg); border: 1px solid #9fd8b6; }
+.status-box.rejected { background: var(--red-bg); border: 1px solid #f0b0b0; }
+.pay-req { border: 1px solid #f0d58a; background: #fffbf0; }

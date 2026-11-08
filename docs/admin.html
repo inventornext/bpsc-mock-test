@@ -15,6 +15,10 @@
 
     <div class="stats" id="summary"></div>
 
+    <h2 class="section-title">Payment requests</h2>
+    <p class="page-sub" style="margin-bottom:12px">Match each reference with the payment in your UPI app or Razorpay dashboard, then approve.</p>
+    <div id="payments"><div class="loading">Loading...</div></div>
+
     <h2 class="section-title">Students</h2>
     <div id="students"><div class="loading">Loading...</div></div>
 
@@ -30,27 +34,79 @@
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
   <script type="module">
-    import { requireUser, logout, allAttempts, allUsers, deleteAttempt, friendlyError } from "./js/fb.js";
+    import {
+      requireUser, logout, allAttempts, allUsers, deleteAttempt, friendlyError,
+      listPayments, listAccess, grantAccess, revokeAccess, rejectPayment,
+    } from "./js/fb.js";
 
     const user = await requireUser({ admin: true });
     renderTopbar(user, logout);
     document.title = `Admin | ${SITE.name}`;
 
-    let attempts = [], users = [];
+    let attempts = [], users = [], payments = [], access = {};
     try {
-      [attempts, users] = await Promise.all([allAttempts(), allUsers()]);
+      [attempts, users, payments, access] = await Promise.all([allAttempts(), allUsers(), listPayments(), listAccess()]);
     } catch (e) {
       showFatal(document.getElementById("students"), "Could not load: " + friendlyError(e));
       throw e;
     }
 
     // ---- summary ----
-    const avgPct = attempts.length ? attempts.reduce((t, a) => t + (a.score / a.max) * 100, 0) / attempts.length : 0;
-    document.getElementById("summary").innerHTML = `
-      <div class="stat"><b>${users.length}</b><span>Students signed up</span></div>
-      <div class="stat"><b>${new Set(attempts.map((a) => a.uid)).size}</b><span>Students who took a test</span></div>
-      <div class="stat"><b>${attempts.length}</b><span>Tests submitted</span></div>
-      <div class="stat"><b>${avgPct.toFixed(1)}%</b><span>Average score</span></div>`;
+    function drawSummary() {
+      const avgPct = attempts.length ? attempts.reduce((t, a) => t + (a.score / a.max) * 100, 0) / attempts.length : 0;
+      document.getElementById("summary").innerHTML = `
+        <div class="stat"><b>${users.length}</b><span>Students signed up</span></div>
+        <div class="stat"><b>${Object.keys(access).length}</b><span>Paid students</span></div>
+        <div class="stat"><b>&#8377;${payments.filter((p) => p.status === "approved").reduce((t, p) => t + (Number(p.amount) || 0), 0)}</b><span>Approved payments</span></div>
+        <div class="stat"><b>${new Set(attempts.map((a) => a.uid)).size}</b><span>Students who took a test</span></div>
+        <div class="stat"><b>${attempts.length}</b><span>Tests submitted</span></div>
+        <div class="stat"><b>${avgPct.toFixed(1)}%</b><span>Average score</span></div>`;
+    }
+    drawSummary();
+
+    // ---- payment requests ----
+    function drawPayments() {
+      const box = document.getElementById("payments");
+      if (!payments.length) { box.innerHTML = `<div class="empty">No payment requests yet.</div>`; return; }
+      const order = { pending: 0, rejected: 1, approved: 2 };
+      const list = [...payments].sort((a, b) => (order[a.status] - order[b.status]) || b.createdAt - a.createdAt);
+      box.innerHTML = `
+        <div style="overflow-x:auto"><table class="history">
+          <thead><tr><th>Student</th><th>Paid with</th><th>Reference</th><th>Amount</th><th>Sent</th><th>Status</th><th></th></tr></thead>
+          <tbody>${list.map((p) => `
+            <tr class="${p.status === "pending" ? "pay-req" : ""}">
+              <td><b>${esc(p.name)}</b><span class="muted">${esc(p.email)}</span></td>
+              <td>${p.method === "razorpay" ? "Razorpay" : "UPI"}</td>
+              <td><span class="upi-id">${esc(p.ref)}</span></td>
+              <td>&#8377;${esc(p.amount)}</td>
+              <td>${fmtDate(p.createdAt)}</td>
+              <td>${p.status === "pending" ? `<span class="badge b">Pending</span>` : p.status === "approved" ? `<span class="badge c">Approved</span>` : `<span class="badge w">Rejected</span>`}</td>
+              <td style="white-space:nowrap">${p.status === "pending" || p.status === "rejected" ? `
+                <button class="btn btn-success" data-approve="${esc(p.uid)}">Approve</button>
+                ${p.status === "pending" ? `<button class="btn" data-reject="${esc(p.uid)}">Reject</button>` : ""}` : ""}</td>
+            </tr>`).join("")}</tbody>
+        </table></div>`;
+    }
+    drawPayments();
+
+    document.getElementById("payments").onclick = async (e) => {
+      const a = e.target.closest("[data-approve]"), r = e.target.closest("[data-reject]");
+      if (!a && !r) return;
+      const uid = (a || r).dataset.approve || (a || r).dataset.reject;
+      const p = payments.find((x) => x.uid === uid);
+      try {
+        if (a) {
+          if (!confirm(`Approve ${p.name}? Check that reference ${p.ref} for \u20b9${p.amount} is in your payments first.`)) return;
+          await grantAccess(uid, { ref: p.ref, method: p.method, amount: p.amount });
+          p.status = "approved"; access[uid] = { grantedAt: Date.now() };
+        } else {
+          if (!confirm(`Reject ${p.name}'s payment reference ${p.ref}?`)) return;
+          await rejectPayment(uid);
+          p.status = "rejected";
+        }
+        drawPayments(); drawStudents(); drawSummary();
+      } catch (err) { alert(friendlyError(err)); }
+    };
 
     // ---- per student ----
     const byUid = {};
@@ -67,12 +123,16 @@
       })
       .sort((a, b) => b.last - a.last);
 
+    function drawStudents() {
     document.getElementById("students").innerHTML = studentRows.length ? `
       <div style="overflow-x:auto"><table class="history">
-        <thead><tr><th>Student</th><th>Tests</th><th>Best</th><th>Average</th><th>Last test</th><th></th></tr></thead>
+        <thead><tr><th>Student</th><th>Paid</th><th>Tests</th><th>Best</th><th>Average</th><th>Last test</th><th></th></tr></thead>
         <tbody>${studentRows.map((s) => `
           <tr>
             <td><b>${esc(s.name || "(no name)")}</b><span class="muted">${esc(s.email || "")}</span></td>
+            <td style="white-space:nowrap">${access[s.uid]
+              ? `<span class="badge c">Paid</span> <a href="#" data-revoke="${esc(s.uid)}" style="font-size:12px;color:var(--red)">remove</a>`
+              : `<a href="#" data-grant="${esc(s.uid)}" style="font-size:13px">Give access</a>`}</td>
             <td>${s.count}</td>
             <td>${s.best !== null ? s.best.toFixed(1) + "%" : "-"}</td>
             <td>${s.avg !== null ? s.avg.toFixed(1) + "%" : "-"}</td>
@@ -80,8 +140,30 @@
             <td>${s.count ? `<a href="#" data-email="${esc(s.email || "")}" class="showStudent">Show tests</a>` : ""}</td>
           </tr>`).join("")}</tbody>
       </table></div>` : `<div class="empty">No students yet.</div>`;
+    }
+    drawStudents();
 
-    document.getElementById("students").onclick = (e) => {
+    document.getElementById("students").onclick = async (e) => {
+      const g = e.target.closest("[data-grant]"), rv = e.target.closest("[data-revoke]");
+      if (g || rv) {
+        e.preventDefault();
+        const uid = (g || rv).dataset.grant || (g || rv).dataset.revoke;
+        const st = studentRows.find((x) => x.uid === uid);
+        try {
+          if (g) {
+            if (!confirm(`Give ${st.name || st.email} full access without a payment request?`)) return;
+            await grantAccess(uid, { manual: true });
+            access[uid] = { grantedAt: Date.now() };
+            const p = payments.find((x) => x.uid === uid); if (p) p.status = "approved";
+          } else {
+            if (!confirm(`Remove ${st.name || st.email}'s paid access?`)) return;
+            await revokeAccess(uid);
+            delete access[uid];
+          }
+          drawStudents(); drawPayments(); drawSummary();
+        } catch (err) { alert(friendlyError(err)); }
+        return;
+      }
       const a = e.target.closest(".showStudent");
       if (!a) return;
       e.preventDefault();
@@ -131,7 +213,7 @@
       try {
         await deleteAttempt(d.dataset.id);
         attempts = attempts.filter((a) => a.id !== d.dataset.id);
-        drawAttempts();
+        drawAttempts(); drawSummary();
       } catch (err) { alert(friendlyError(err)); }
     };
 

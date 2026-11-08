@@ -1,7 +1,7 @@
 # BPSC Mock Test
 
 A website for practising BPSC previous-year papers in real exam mode: login, timer, question palette, autosave and resume, then a scored result with every answer and explanation.
-https://inventornext.github.io/bpsc-mock-test/papers.html
+
 Python turns the PDFs into question files. The website is plain HTML/JS hosted free on GitHub Pages. Logins and results are stored in Firebase (free plan), so students can use any device and the admin page shows everyone's scores.
 
 ```
@@ -11,22 +11,26 @@ bpsc-mock-test/
 │   ├── papers.html        paper list + attempt history
 │   ├── exam.html          exam screen
 │   ├── result.html        score + answer review
-│   ├── admin.html         all students' results (admins only)
+│   ├── admin.html         all students' results, payment approvals (admins only)
+│   ├── buy.html           unlock page (UPI QR / Razorpay link)
 │   ├── css/style.css
-│   ├── js/config.js       site name
+│   ├── js/config.js       site name, price, UPI ID / Razorpay link  <- edit this
 │   ├── js/firebase-config.js   your Firebase keys  <- edit this
 │   ├── js/fb.js           login + database code
 │   ├── js/common.js
 │   ├── js/exam.js
-│   └── data/
-│       ├── papers.json    list of papers (built automatically)
-│       └── papers/        one JSON per paper
 ├── tools/
-│   ├── parse_pdf.py       PDF -> JSON
+│   ├── manager.py         Paper Manager (add, fix, publish papers in your browser)
+│   ├── cloud.py           uploads papers to Firebase
+│   ├── manager_ui/        Paper Manager page
+│   ├── parse_pdf.py       PDF -> JSON (used by the manager, or run it directly)
 │   └── serve.py           preview the site locally
-├── pdfs/                  put your PDFs here (not uploaded to GitHub)
+├── pdfs/                  your PDFs (not uploaded to GitHub)
+├── papers/                your papers as JSON (not uploaded to GitHub; Publish sends them to Firebase)
+├── serviceAccount.json    your Firebase admin key (you add it; never uploaded)
 ├── review/                parser's list of questions to check by hand
 ├── firestore.rules        database security rules (paste into Firebase)
+├── Paper Manager.bat      double-click to open the Paper Manager (Windows)
 └── requirements.txt
 ```
 
@@ -39,46 +43,34 @@ bpsc-mock-test/
    pip install -r requirements.txt
    ```
 
-## 2. Add a paper
+## 2. Add papers with the Paper Manager
 
-Put the PDF in `pdfs/` and run:
+Double-click **`Paper Manager.bat`** in the project folder, or in PyCharm's terminal run:
 
 ```
-python tools/parse_pdf.py pdfs/BPSC_Paper_1995.pdf --year 1995
+python tools/manager.py
 ```
 
-Options:
+Your browser opens the Paper Manager at http://localhost:8000/manager/ . Keep the black terminal window open while you use it; close it (or press Ctrl+C) when done.
 
-| option | default | meaning |
-|---|---|---|
-| `--year` | required | paper year |
-| `--title` | `BPSC Prelims <year>` | name shown on the site |
-| `--duration` | `120` | minutes |
-| `--marks` | `1` | marks per correct answer |
-| `--negative` | `0` | marks cut per wrong answer (e.g. `0.33`) |
-| `--id` | `bpsc_<year>` | file name; use different ids for two papers from the same year |
+1. **Add a paper:** click **Browse for a PDF** (or drag one in). The year is filled in from the file name. Set the minutes and negative marking if needed, then click **Convert paper**.
+2. **Check & edit:** it shows the questions that need checking in yellow (match-the-column tables, duplicate options, missing answers). Fix the text, tick the correct option, then tick **"I've checked this question"**. Press **Save paper** (or Ctrl+S).
+3. **Preview:** the **Preview** button opens the paper on your local copy of the site (log in as usual).
+4. **Publish:** type what changed and click **Publish**. It uploads changed papers to Firebase (live straight away), then pushes any website code changes to GitHub (`git add`, `commit`, `pull`, `push`).
 
-It prints how many questions and answers it found, writes `docs/data/papers/bpsc_1995.json`, and rebuilds the paper list.
+You can also delete a paper (then Publish), or re-convert the same PDF. Re-converting replaces the paper and loses any edits you made to it, and the manager asks before doing that.
 
-### Check the review file
+The PDF is copied into `pdfs/` and the paper is saved in `papers/`. Neither is uploaded to GitHub. Back up `papers/` somewhere safe: it holds your edits.
 
-`review/bpsc_1995_review.txt` lists questions the parser was unsure about (match-the-column tables, missing options, missing answers). Open the JSON in PyCharm, press **Ctrl+F**, search for `"id": 8,` and fix the text by hand. Each question looks like this:
+### Without the manager
 
-```json
-{
-  "id": 1,
-  "question": "Select the first ruler of Vijaynagar who captured Goa from Bahmani?",
-  "options": ["Harihar", "Harihar II", "Bukka", "Devraya II"],
-  "answer": "b",
-  "explanation": "Harihara-II was the first ruler ..."
-}
+```
+python tools/parse_pdf.py pdfs/BPSC_Paper_1995.pdf --year 1995 --negative 0.33
 ```
 
-- `\n` inside `question` starts a new line (used for lists and tables).
-- Dropped/bonus questions have `"answer": null, "bonus": true`, and everyone gets the marks.
-- Re-running `parse_pdf.py` on the same paper **overwrites your hand fixes**, so fix the JSON only after you're happy with the parse.
+Options: `--year` (required), `--title`, `--duration` (default 120), `--marks` (default 1), `--negative` (default 0), `--id` (default `bpsc_<year>`; use different ids for two papers from the same year). Questions to check are listed in `review/<id>_review.txt`.
 
-The parser is tuned for the Oswaal "20 previous years solved papers" layout: two columns, questions first, then `12 Option (c) is correct.` with an explanation. PDFs from a different book or a scanned PDF (no selectable text) will need changes to the patterns at the top of `parse_pdf.py`.
+The parser is tuned for the Oswaal "20 previous years solved papers" layout: two columns, questions first, then `12 Option (c) is correct.` with an explanation. PDFs from a different book or scanned PDFs (no selectable text) need changes to the patterns at the top of `parse_pdf.py`.
 
 ## 3. Set up Firebase (one time, about 10 minutes)
 
@@ -101,13 +93,53 @@ These keys are meant to be public. The security rules are what protect the data:
 
 Do the same to add another admin. To stop public sign-ups, set `ALLOW_SIGNUP = false` in `firebase-config.js` and add students yourself under **Authentication > Users > Add user**.
 
+## Paid access (one-time payment, approved by you)
+
+Papers live in Firebase, not on GitHub, so nobody can open a locked paper without paying.
+
+- Tick **Free** in the Paper Manager for papers anyone can try after signing up.
+- Every other paper is locked until you approve the student's payment.
+
+### Set your price and payment method
+
+Edit `docs/js/config.js`:
+
+```js
+const PAYMENT = {
+  price: 99,
+  upiId: "yourname@okaxis",     // your UPI ID (GPay/PhonePe/Paytm > profile)
+  upiName: "BPSC Mock Test",
+  razorpayLink: "",             // add later, e.g. "https://rzp.io/rzp/abc123"
+  contact: "your@email.com",    // shown if a student needs help
+};
+```
+
+UPI needs no account or KYC. Students scan the QR (or tap the button on their phone), pay, then type the **UPI transaction ID (UTR)** on the site.
+
+To use Razorpay later: create an account, make a **Payment Page** or **Payment Link** for the price, and paste its URL into `razorpayLink`.
+
+### Approving payments
+
+1. Open **Admin**. New requests are at the top under **Payment requests**, with the reference the student typed.
+2. Find that reference (UTR) and amount in your UPI app's history or bank SMS.
+3. Click **Approve**. The student's papers unlock straight away (they may need to refresh). Click **Reject** if you can't find the payment.
+
+You can also give or remove access for any student in the **Students** table.
+
+### Connect the Paper Manager to Firebase (one time)
+
+The Paper Manager uploads papers with a Firebase **service account key**. This key has full control of your Firebase project, so keep it private.
+
+1. Firebase console: gear icon > **Project settings > Service accounts**.
+2. Click **Generate new private key** > **Generate key**. A `.json` file downloads.
+3. Rename it to `serviceAccount.json` and move it into the project folder (next to `README.md`).
+4. Check `.gitignore` contains `serviceAccount.json` (it does by default). The Paper Manager refuses to push if it doesn't.
+
+Never put this file in `docs/`, email it, or upload it anywhere.
+
 ## 4. Preview on your computer
 
-```
-python tools/serve.py
-```
-
-Your browser opens at http://localhost:8000. (Opening `docs/index.html` by double-clicking won't work, because browsers block that. Always use `serve.py`.)
+While the Paper Manager is running, your site is at http://localhost:8000/ and shows your **local, unpublished** papers, so you can check edits before publishing. Or run `python tools/serve.py` on its own (that shows the published papers from Firebase). (Opening `docs/index.html` by double-clicking won't work, because browsers block that.)
 
 ## Where data is stored
 
@@ -118,11 +150,15 @@ Your browser opens at http://localhost:8000. (Opening `docs/index.html` by doubl
 | Test in progress | Firestore `users/<uid>/progress`, saved about every 15 seconds and when the tab is closed; also backed up in the browser in case the internet drops |
 | Submitted tests | Firestore `attempts` |
 | Who is admin | Firestore `admins` |
-| Question papers | `docs/data/papers/*.json` in this repo (public) |
+| Question papers | Firestore `papers` (free ones open to all logged-in users, the rest to paid students) |
+| Paper list | Firestore `meta/papers` |
+| Paid students | Firestore `access` (only admins can change it) |
+| Payment requests | Firestore `payments` |
+| Your local copies | `papers/` folder on your computer (back it up, e.g. to Google Drive) |
 
 Free plan limits: 50,000 reads and 20,000 writes a day, 1 GB storage. One full test uses roughly 10 to 30 writes, so that's around 1,000 tests a day. If a limit is hit, the database pauses until the next day; you are never charged on the Spark plan.
 
-Note: the answer keys are inside the public paper JSON files, so a determined student could look them up. That's normal for a practice site.
+Note: a logged-in student who can open a paper also receives its answer key in the background, so a determined student could find answers before submitting. That's normal for a practice site.
 
 ## 5. Put it on GitHub Pages
 
