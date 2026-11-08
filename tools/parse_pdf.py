@@ -261,6 +261,9 @@ def rebuild_index():
     papers = []
     for f in paper_files():
         d = json.loads(f.read_text(encoding="utf-8"))
+        if d.get("id") != f.stem:   # file name wins, so ids always match
+            d["id"] = f.stem
+            f.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
         papers.append({
             "id": d["id"],
             "title": d["title"],
