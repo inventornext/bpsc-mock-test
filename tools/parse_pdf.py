@@ -268,6 +268,9 @@ def rebuild_index():
         if d.get("category") not in ("pyq", "mock"):
             d["category"] = guess_category(f.stem, d.get("title", ""))
             changed = True
+        if not d.get("exam"):
+            d["exam"] = guess_exam(f.stem, d.get("title", ""))
+            changed = True
         if changed:
             f.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
         papers.append({
@@ -280,9 +283,31 @@ def rebuild_index():
             "negative": d.get("negative", 0),
             "free": bool(d.get("free", False)),
             "category": d["category"],
+            "exam": d["exam"],
         })
     papers.sort(key=lambda p: (p.get("year") or 0), reverse=True)
     return papers
+
+
+def exam_ids():
+    """Exam ids from docs/exams.json (the list shown on the site)."""
+    try:
+        return [e["id"] for e in json.loads((ROOT / "docs" / "exams.json").read_text(encoding="utf-8"))]
+    except Exception:
+        return ["cce"]
+
+
+def guess_exam(pid, title=""):
+    """Best guess of which exam a paper belongs to, from its file name and title."""
+    t = f" {pid} {title} ".lower().replace("_", " ").replace("-", " ")
+    rules = [("aedo", ["aedo", "education development"]), ("tre", [" tre", "teacher"]),
+             ("apo", [" apo", "prosecution"]), ("judiciary", ["judicial", "judiciary", "civil judge"]),
+             ("ae", [" ae ", "assistant engineer", "engineer"])]
+    known = exam_ids()
+    for exam, words in rules:
+        if exam in known and any(w in t for w in words):
+            return exam
+    return known[0] if known else "cce"
 
 
 def guess_category(pid, title=""):
@@ -366,6 +391,7 @@ def convert(pdf_path, year, paper_id=None, title=None, duration=120, marks=1, ne
         "negative": negative,
         "free": False,
         "category": "pyq",
+        "exam": guess_exam(paper_id, title),
         "questions": questions,
     }
     out_file = PAPERS_DIR / f"{paper_id}.json"

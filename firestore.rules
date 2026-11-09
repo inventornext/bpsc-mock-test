@@ -25,8 +25,9 @@ service cloud.firestore {
 
     // Paper list and papers: written only by the Paper Manager (service account).
     // Free papers open to any logged-in user, the rest only to paid students and admins.
+    // The paper list (titles and counts only) is public so the home page can show it
     match /meta/{docId} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if false;
     }
     match /papers/{paperId} {

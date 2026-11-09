@@ -82,9 +82,11 @@ async function buildUser(u) {
 // While redirecting it returns a promise that never resolves, so the page stops quietly.
 export async function requireUser({ admin = false } = {}) {
   const stop = (to) => { location.replace(to); return new Promise(() => {}); };
-  if (!configured) return stop("index.html");
+  const here = (location.pathname.split("/").pop() || "papers.html") + location.search;
+  const toLogin = `login.html?next=${encodeURIComponent(here)}`;
+  if (!configured) return stop(toLogin);
   const u = await currentUser();
-  if (!u) return stop("index.html");
+  if (!u) return stop(toLogin);
   if (admin && !u.isAdmin) return stop("papers.html");
   return u;
 }
@@ -108,6 +110,15 @@ export async function resetPassword(email) {
 export async function logout() {
   await signOut(auth);
   location.href = "index.html";
+}
+
+// The exam list shown on the home page and dashboard (docs/exams.json)
+export async function getExams() {
+  try {
+    const r = await fetch("exams.json", { cache: "no-cache" });
+    if (r.ok) return r.json();
+  } catch (e) {}
+  return [{ id: "cce", short: "CCE", name: "Combined Competitive Exam", about: "", color: "#1F2F86" }];
 }
 
 // Turn Firebase error codes into plain sentences.

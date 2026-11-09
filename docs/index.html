@@ -3,104 +3,149 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login | BPSC Mock Test</title>
+  <title>BPSC Mock Test: previous year papers and mock tests</title>
+  <meta name="description" content="Practise BPSC CCE, TRE, AEDO and other exams online with previous year papers, mock tests, a real exam timer and explanations.">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/home.css">
 </head>
-<body>
-  <div class="login-wrap">
-    <div class="login-card">
-      <span class="brand-badge" id="badge">BPSC</span>
-      <h1 id="siteName">BPSC Mock Test</h1>
-      <p class="sub" id="tagline"></p>
+<body class="home">
+  <header class="home-nav">
+    <a class="brand" href="index.html"><span class="brand-badge" id="badge">BPSC</span><span id="siteName">BPSC Mock Test</span></a>
+    <nav class="home-links">
+      <a class="plain" href="#exams">Exams</a>
+      <a class="plain" href="#how">How it works</a>
+      <a class="plain" href="#price">Price</a>
+      <span id="navAuth">
+        <a class="btn" href="login.html">Log in</a>
+      </span>
+    </nav>
+  </header>
 
-      <div class="tabs" id="tabs">
-        <button class="tab active" data-t="login">Log in</button>
-        <button class="tab" data-t="signup" id="signupTab">Sign up</button>
+  <!-- hero: the OMR sheet is the one animated moment on the page -->
+  <section class="hero">
+    <span class="timing" aria-hidden="true"></span>
+    <div>
+      <h1>Practise BPSC exams the way they're really held.</h1>
+      <p class="hindi" lang="hi">असली परीक्षा जैसा अभ्यास</p>
+      <p class="lede">Previous year papers and full mock tests for CCE, TRE, AEDO and more. You get the real timer, question palette and negative marking, then an explanation for every answer.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-ink" id="ctaStart" href="login.html?mode=signup&next=papers.html">Start a free test</a>
+        <a class="btn" href="#exams">See all exams</a>
       </div>
-
-      <!-- login -->
-      <form id="loginForm">
-        <div class="field"><label for="lEmail">Email</label><input id="lEmail" type="email" required autocomplete="email"></div>
-        <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" required autocomplete="current-password"></div>
-        <button class="btn btn-primary" type="submit">Log in</button>
-        <p class="small-link"><a href="#" id="forgotLink">Forgot password?</a></p>
-      </form>
-
-      <!-- signup -->
-      <form id="signupForm" class="hidden">
-        <div class="field"><label for="sName">Full name</label><input id="sName" required maxlength="80" autocomplete="name"></div>
-        <div class="field"><label for="sEmail">Email</label><input id="sEmail" type="email" required autocomplete="email"></div>
-        <div class="field"><label for="sPass">Password (min 6 characters)</label><input id="sPass" type="password" required minlength="6" autocomplete="new-password"></div>
-        <button class="btn btn-primary" type="submit">Create account</button>
-      </form>
-
-      <!-- reset -->
-      <form id="resetForm" class="hidden">
-        <p class="sub" style="margin-bottom:14px">Enter your email and we'll send a link to set a new password.</p>
-        <div class="field"><label for="rEmail">Email</label><input id="rEmail" type="email" required autocomplete="email"></div>
-        <button class="btn btn-primary" type="submit">Send reset link</button>
-        <p class="small-link"><a href="#" id="backLink">Back to log in</a></p>
-      </form>
-
-      <div class="error" id="msg"></div>
+      <p class="hero-note" id="heroNote"></p>
     </div>
-  </div>
+
+    <div class="omr" role="img" aria-label="An exam answer sheet being filled in">
+      <div class="omr-head">
+        <span class="omr-title">ANSWER SHEET</span>
+        <span class="omr-roll" aria-hidden="true"><span>2</span><span>0</span><span>4</span><span>7</span><span>1</span></span>
+      </div>
+      <ul class="omr-rows" id="omrRows"></ul>
+      <div class="omr-foot">
+        <span>+2 for right, −0.67 for wrong</span>
+        <span class="score-stamp">+11.33</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="band white" id="exams">
+    <div class="wrap">
+      <h2>Choose your exam</h2>
+      <p class="sub">Every paper is timed and scored like the real one. Start with a free paper, no payment needed.</p>
+      <div class="booklet-grid" id="examGrid"><div class="loading">Loading exams...</div></div>
+    </div>
+  </section>
+
+  <section class="band" id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="sub">Three steps, and your progress is saved on any phone or laptop you log in from.</p>
+      <ol class="steps">
+        <li><h3>Create a free account</h3><p>Sign up with your email. Free papers open straight away.</p></li>
+        <li><h3>Take a timed test</h3><p>Answer, mark for review and move between questions, just like the exam hall. Close the tab and resume later.</p></li>
+        <li><h3>Check your result</h3><p>See your score with negative marking, every right answer with its explanation, and where you rank among toppers.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band white">
+    <div class="wrap">
+      <h2>What you get</h2>
+      <p class="sub">Built for serious practice, not quizzes.</p>
+      <div class="features">
+        <div><h3>Real exam screen</h3><p>Timer, question palette, mark for review and auto-submit when time runs out.</p></div>
+        <div><h3>Explanations for every question</h3><p>Understand why an answer is right, written in simple language.</p></div>
+        <div><h3>Toppers for each paper</h3><p>Only first attempts count, so the ranking shows real exam readiness.</p></div>
+        <div><h3>Works on any phone</h3><p>Answers save online as you go. Start on your phone, finish on a laptop.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="price">
+    <div class="wrap price-wrap">
+      <div>
+        <h2>One simple price</h2>
+        <p class="sub">Try the free papers first. When you're ready, unlock every paper and mock test for a full year.</p>
+      </div>
+      <div class="price-card">
+        <div class="amt" id="priceAmt"></div>
+        <ul id="priceList">
+          <li>All previous year papers and mock tests</li>
+          <li>New papers added during your plan</li>
+          <li>Pay by UPI, renew any time</li>
+        </ul>
+        <a class="btn btn-ink" href="login.html?mode=signup&next=buy.html">Get full access</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="home-foot">
+    <div class="wrap">
+      <p>This is an independent practice website. It is not run by or connected with the Bihar Public Service Commission. Check official notices at bpsc.bihar.gov.in.</p>
+      <p id="footContact"></p>
+    </div>
+  </footer>
 
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
   <script type="module">
-    import { configured, currentUser, login, signup, resetPassword, friendlyError, ALLOW_SIGNUP } from "./js/fb.js";
+    import { configured, currentUser, getPaperIndex, getExams } from "./js/fb.js";
 
-    document.title = `Login | ${SITE.name}`;
+    document.title = `${SITE.name}: previous year papers and mock tests`;
     document.getElementById("siteName").textContent = SITE.name;
     document.getElementById("badge").textContent = SITE.short;
-    document.getElementById("tagline").textContent = SITE.tagline;
 
-    const msg = document.getElementById("msg");
-    const forms = { login: loginForm, signup: signupForm, reset: resetForm };
-    const say = (text, ok = false) => { msg.textContent = text; msg.style.color = ok ? "var(--green)" : ""; };
+    // ---- OMR sheet: 8 questions, bubbles fill one after another ----
+    const picks = ["b", "d", "a", "c", "b", "a", "d", "c"];
+    document.getElementById("omrRows").innerHTML = picks.map((p, i) => `
+      <li><span class="qn">${i + 1}</span>${["a", "b", "c", "d"].map((l) =>
+        `<span class="bub${l === p ? " fill" : ""}" style="--d:${(0.35 + i * 0.25).toFixed(2)}s">${l.toUpperCase()}</span>`).join("")}</li>`).join("");
 
-    if (!configured) {
-      say("Firebase isn't set up yet. Paste your config into docs/js/firebase-config.js (see README).");
-      document.querySelectorAll("button").forEach((b) => (b.disabled = true));
-    } else if (await currentUser()) {
-      location.replace("papers.html");
+    // ---- price ----
+    document.getElementById("priceAmt").innerHTML = `&#8377;${PAYMENT.price} <small>for ${planLabel()}</small>`;
+    if (PAYMENT.contact) document.getElementById("footContact").textContent = `Questions? ${PAYMENT.contact}`;
+
+    // ---- logged in? ----
+    const user = configured ? await currentUser().catch(() => null) : null;
+    if (user) {
+      document.getElementById("navAuth").innerHTML = `<a class="btn btn-ink" href="papers.html">My dashboard</a>`;
+      const cta = document.getElementById("ctaStart");
+      cta.textContent = "Go to my tests"; cta.href = "papers.html";
+    } else {
+      document.getElementById("navAuth").innerHTML = `<a class="btn" href="login.html">Log in</a>`;
     }
 
-    if (!ALLOW_SIGNUP) { signupTab.remove(); }
+    // ---- exams ----
+    const [exams, papers] = await Promise.all([getExams(), getPaperIndex().catch(() => [])]);
+    const link = (e) => user ? `papers.html?exam=${encodeURIComponent(e.id)}` : `login.html?mode=signup&next=${encodeURIComponent("papers.html?exam=" + e.id)}`;
+    document.getElementById("examGrid").innerHTML = examGridHTML(exams, papers, link);
 
-    function show(name) {
-      Object.entries(forms).forEach(([k, f]) => f.classList.toggle("hidden", k !== name));
-      document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.t === name));
-      tabs.classList.toggle("hidden", name === "reset");
-      say("");
+    const questions = papers.reduce((t, p) => t + (p.count || 0), 0);
+    const free = papers.filter((p) => p.free).length;
+    if (papers.length) {
+      document.getElementById("heroNote").textContent =
+        `${papers.length} papers and ${questions.toLocaleString("en-IN")} questions so far${free ? `, ${free} of them free` : ""}.`;
     }
-    tabs.onclick = (e) => { const t = e.target.closest(".tab"); if (t) show(t.dataset.t); };
-    forgotLink.onclick = (e) => { e.preventDefault(); rEmail.value = lEmail.value; show("reset"); };
-    backLink.onclick = (e) => { e.preventDefault(); show("login"); };
-
-    async function run(form, fn) {
-      const btn = form.querySelector("button[type=submit]");
-      btn.disabled = true; say("");
-      try { await fn(); }
-      catch (err) { say(friendlyError(err)); }
-      finally { btn.disabled = false; }
-    }
-
-    loginForm.onsubmit = (e) => { e.preventDefault(); run(loginForm, async () => {
-      await login(lEmail.value, lPass.value);
-      location.href = "papers.html";
-    }); };
-
-    signupForm.onsubmit = (e) => { e.preventDefault(); run(signupForm, async () => {
-      await signup(sName.value.trim(), sEmail.value, sPass.value);
-      location.href = "papers.html";
-    }); };
-
-    resetForm.onsubmit = (e) => { e.preventDefault(); run(resetForm, async () => {
-      await resetPassword(rEmail.value);
-      say("Reset link sent. Check your inbox (and spam folder).", true);
-    }); };
   </script>
 </body>
 </html>

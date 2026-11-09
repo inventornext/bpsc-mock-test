@@ -10,16 +10,25 @@
   <header class="topbar" id="topbar"></header>
 
   <main class="container">
+    <div class="crumbs hidden" id="crumbs"><a href="papers.html">All exams</a></div>
     <h1 class="page-title" id="hello">Papers</h1>
-    <p class="page-sub">Pick a paper to start a timed test. Your answers save online as you go, so you can resume on any device.</p>
+    <p class="page-sub" id="pageSub">Pick an exam, then a paper. Your answers save online as you go, so you can resume on any device.</p>
 
     <div id="unlockBanner"></div>
 
+    <!-- exam picker (no exam chosen) -->
+    <div id="examView" class="hidden">
+      <div class="booklet-grid" id="examGrid"></div>
+    </div>
+
+    <!-- papers of one exam -->
+    <div id="paperView" class="hidden">
     <div class="tabs paper-tabs hidden" id="paperTabs">
       <button class="tab active" data-cat="pyq">Previous year papers</button>
       <button class="tab" data-cat="mock">Mock tests</button>
     </div>
     <div class="paper-grid" id="papers"><div class="empty">Loading papers...</div></div>
+    </div>
 
     <h2 class="section-title">Your attempts</h2>
     <div id="history"></div>
@@ -28,7 +37,7 @@
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
   <script type="module">
-    import { requireUser, logout, myAttempts, listProgress, getPaperIndex, getMyPayment, friendlyError } from "./js/fb.js";
+    import { requireUser, logout, myAttempts, listProgress, getPaperIndex, getMyPayment, getExams, friendlyError } from "./js/fb.js";
 
     const user = await requireUser();
     renderTopbar(user, logout);
@@ -37,11 +46,12 @@
 
     const box = document.getElementById("papers");
     const hist = document.getElementById("history");
-    let papers, attempts, progress, payment = null;
+    let papers, attempts, progress, payment = null, exams;
     try {
-      [papers, attempts, progress, payment] = await Promise.all([
+      [papers, attempts, progress, payment, exams] = await Promise.all([
         getPaperIndex(), myAttempts(user.uid), listProgress(user.uid),
         user.hasAccess ? null : getMyPayment(user.uid).catch(() => null),
+        getExams(),
       ]);
     } catch (e) {
       showFatal(box, "Could not load: " + friendlyError(e));
@@ -84,13 +94,33 @@
         </div>`;
     }
 
+    // ---- which exam? ----
+    papers.forEach((p) => (p.exam = p.exam || "cce"));
+    const examsWithPapers = exams.filter((e) => papers.some((p) => p.exam === e.id));
+    let examId = qs("exam");
+    if (!examId && examsWithPapers.length === 1 && exams.length === 1) examId = examsWithPapers[0].id;
+    const exam = exams.find((e) => e.id === examId);
+    if (!exam) {
+      // exam picker
+      document.getElementById("examView").classList.remove("hidden");
+      document.getElementById("examGrid").innerHTML = examGridHTML(exams, papers, (e) => `papers.html?exam=${encodeURIComponent(e.id)}`);
+    } else {
+      document.getElementById("paperView").classList.remove("hidden");
+      document.getElementById("crumbs").classList.remove("hidden");
+      document.getElementById("hello").textContent = `${exam.short}: ${exam.name}`;
+      document.getElementById("hello").style.color = exam.color;
+      document.getElementById("pageSub").textContent = exam.about || "Pick a paper to start a timed test.";
+      document.title = `${exam.short} papers | ${SITE.name}`;
+      papers = papers.filter((p) => p.exam === exam.id);
+    }
+
     // ---- tabs: previous year papers / mock tests ----
     papers.forEach((p) => (p.category = p.category === "mock" ? "mock" : "pyq"));
     const counts = { pyq: papers.filter((p) => p.category === "pyq").length, mock: papers.filter((p) => p.category === "mock").length };
     const tabs = document.getElementById("paperTabs");
     let cat = Store.get("bpsc_papers_tab", "pyq");
     if (!counts[cat]) cat = counts.pyq ? "pyq" : "mock";
-    if (counts.pyq && counts.mock) {
+    if (counts.pyq || counts.mock) {
       tabs.classList.remove("hidden");
       tabs.querySelector('[data-cat="pyq"]').textContent = `Previous year papers (${counts.pyq})`;
       tabs.querySelector('[data-cat="mock"]').textContent = `Mock tests (${counts.mock})`;

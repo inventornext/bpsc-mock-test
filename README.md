@@ -7,7 +7,9 @@ Python turns the PDFs into question files. The website is plain HTML/JS hosted f
 ```
 bpsc-mock-test/
 ├── docs/                  <- the website (GitHub Pages serves this folder)
-│   ├── index.html         login
+│   ├── index.html         public home page (exams, how it works, price)
+│   ├── login.html         log in / sign up
+│   ├── exams.json         the list of exams shown on the site  <- edit to add exams
 │   ├── papers.html        paper list + attempt history
 │   ├── exam.html          exam screen
 │   ├── result.html        score + answer review
@@ -57,6 +59,10 @@ Your browser opens the Paper Manager at http://localhost:8000/manager/ . Keep th
 2. **Check & edit:** it shows the questions that need checking in yellow (match-the-column tables, duplicate options, missing answers). Fix the text, tick the correct option, then tick **"I've checked this question"**. Press **Save paper** (or Ctrl+S).
 3. **Preview:** the **Preview** button opens the paper on your local copy of the site (log in as usual).
 4. **Publish:** type what changed and click **Publish**. It uploads changed papers to Firebase (live straight away), then pushes any website code changes to GitHub (`git add`, `commit`, `pull`, `push`).
+
+**Exams:** every paper belongs to one exam (CCE, TRE, AEDO, AE, APO, Judiciary). The home page and dashboard show one card per exam; tapping it lists that exam's papers. Set a paper's exam under **Check & edit > Exam**. New papers are guessed from the file name or title (for example "tre" or "teacher" goes to TRE, "aedo" to AEDO), otherwise CCE.
+
+To add or rename an exam, edit `docs/exams.json`. Each entry has an `id` (lowercase, used in paper files), a `short` name for the card, the full `name`, a one-line `about`, and a `color`. Exams without papers show as "Papers coming soon". Then restart the Paper Manager and Publish.
 
 **Mock tests and previous year papers** show in separate tabs on the site. Each paper's **Type** is set in **Check & edit**. Files with "mock" in the name or title are marked as mock tests automatically. You can also drop your own JSON files into `papers/`: the file name becomes the paper's id, so use lowercase letters, numbers and `_` (e.g. `mock_test_3.json`).
 

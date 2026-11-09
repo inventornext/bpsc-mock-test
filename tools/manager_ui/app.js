@@ -18,6 +18,14 @@ function setMsg(el, text, ok) {
 
 /* =================== HOME =================== */
 
+let EXAMS = [];
+fetch("/exams.json").then((r) => r.json()).then((list) => {
+  EXAMS = list;
+  $("eExam").innerHTML = list.map((e) => `<option value="${esc(e.id)}">${esc(e.short)}: ${esc(e.name)}</option>`).join("");
+  loadPapers();
+}).catch(() => {});
+const examShort = (id) => (EXAMS.find((e) => e.id === id) || { short: id || "" }).short;
+
 let chosenFile = null;
 
 function pickFile(f) {
@@ -88,10 +96,11 @@ async function loadPapers() {
     if (!papers.length) { box.innerHTML = `<div class="empty">No papers yet. Add one above.</div>`; return; }
     box.innerHTML = `
       <div style="overflow-x:auto"><table class="history">
-        <thead><tr><th>Paper</th><th>Type</th><th>Year</th><th>Questions</th><th>Free</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Paper</th><th>Exam</th><th>Type</th><th>Year</th><th>Questions</th><th>Free</th><th>Status</th><th></th></tr></thead>
         <tbody>${papers.map((p) => `
           <tr>
             <td><b>${esc(p.title)}</b><span class="muted" style="display:block;color:var(--muted);font-size:12px">${esc(p.id)}.json</span></td>
+            <td>${esc(examShort(p.exam))}</td>
             <td>${p.category === "mock" ? "Mock test" : "Previous year"}</td>
             <td>${esc(p.year ?? "")}</td>
             <td>${p.count}</td>
@@ -186,6 +195,7 @@ async function openEditor(id, onlyFlagged) {
   $("eNegative").value = paper.negative;
   $("eFree").checked = !!paper.free;
   $("eCategory").value = paper.category === "mock" ? "mock" : "pyq";
+  $("eExam").value = paper.exam || (EXAMS[0] && EXAMS[0].id) || "";
   $("onlyFlagged").checked = onlyFlagged;
   dirty = false;
   $("saveMsg").textContent = "";
@@ -275,6 +285,7 @@ $("eChecked").onchange = (e) => { paper.questions[cur].checked = e.target.checke
 ["eTitle", "eYear", "eDuration", "eMarks", "eNegative"].forEach((id) => ($(id).oninput = markDirty));
 $("eFree").onchange = markDirty;
 $("eCategory").onchange = markDirty;
+$("eExam").onchange = markDirty;
 
 $("qgrid").onclick = (e) => { const b = e.target.closest("[data-i]"); if (b) showQ(+b.dataset.i); };
 $("onlyFlagged").onchange = drawGrid;
@@ -300,7 +311,7 @@ async function save() {
   try {
     const body = {
       title: $("eTitle").value, year: $("eYear").value, duration: $("eDuration").value,
-      marks: $("eMarks").value, negative: $("eNegative").value, free: $("eFree").checked, category: $("eCategory").value, questions: paper.questions,
+      marks: $("eMarks").value, negative: $("eNegative").value, free: $("eFree").checked, category: $("eCategory").value, exam: $("eExam").value, questions: paper.questions,
     };
     paper = await api(`/api/paper/${paper.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     dirty = false;

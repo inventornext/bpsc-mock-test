@@ -67,6 +67,46 @@ function planLabel() {
 function fmtDay(ts) { return new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); }
 function daysLeft(ts) { return Math.ceil((ts - Date.now()) / 86400000); }
 
+// Exam cards styled like question booklets. `href(exam)` gives each card's link.
+function examStats(papers, examId) {
+  const list = papers.filter((p) => (p.exam || "cce") === examId);
+  return {
+    pyq: list.filter((p) => p.category !== "mock").length,
+    mock: list.filter((p) => p.category === "mock").length,
+    free: list.filter((p) => p.free).length,
+    total: list.length,
+  };
+}
+
+function examGridHTML(exams, papers, href) {
+  const withPapers = exams.filter((e) => examStats(papers, e.id).total);
+  const soon = exams.filter((e) => !examStats(papers, e.id).total);
+  const card = (e) => {
+    const st = examStats(papers, e.id);
+    const counts = [st.pyq && `${st.pyq} previous year paper${st.pyq > 1 ? "s" : ""}`, st.mock && `${st.mock} mock test${st.mock > 1 ? "s" : ""}`].filter(Boolean);
+    return st.total ? `
+      <a class="booklet" href="${href(e)}" style="--c:${esc(e.color || "#1F2F86")}">
+        <span class="booklet-spine" aria-hidden="true"></span>
+        <span class="booklet-body">
+          <span class="booklet-code">${esc(e.short)}</span>
+          <span class="booklet-name">${esc(e.name)}</span>
+          ${e.about ? `<span class="booklet-about">${esc(e.about)}</span>` : ""}
+          <span class="booklet-counts">${counts.map(esc).join("<br>")}</span>
+          ${st.free ? `<span class="booklet-free">${st.free} free to try</span>` : ""}
+        </span>
+      </a>` : `
+      <div class="booklet soon" style="--c:${esc(e.color || "#1F2F86")}">
+        <span class="booklet-spine" aria-hidden="true"></span>
+        <span class="booklet-body">
+          <span class="booklet-code">${esc(e.short)}</span>
+          <span class="booklet-name">${esc(e.name)}</span>
+          <span class="booklet-counts">Papers coming soon</span>
+        </span>
+      </div>`;
+  };
+  return withPapers.map(card).join("") + soon.map(card).join("");
+}
+
 // Previous year papers: newest first. Mock tests: Mock Test 1, 2, ... 10 in order.
 function sortPapers(list) {
   return [...list].sort((a, b) =>

@@ -24,7 +24,7 @@
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>
   <script type="module">
-    import { requireUser, logout, getPaperIndex, getToppers, getMyLeaderboardEntry, friendlyError } from "./js/fb.js";
+    import { requireUser, logout, getPaperIndex, getToppers, getMyLeaderboardEntry, getExams, friendlyError } from "./js/fb.js";
 
     const user = await requireUser();
     renderTopbar(user, logout);
@@ -35,11 +35,13 @@
     try { papers = await getPaperIndex(); } catch (e) { showFatal($("board"), friendlyError(e)); throw e; }
     if (!papers.length) { $("board").innerHTML = `<div class="empty">No papers yet.</div>`; throw new Error("no papers"); }
 
-    const groups = [["pyq", "Previous year papers"], ["mock", "Mock tests"]];
-    $("paperSel").innerHTML = groups.map(([cat, label]) => {
-      const list = sortPapers(papers.filter((p) => (p.category || "pyq") === cat));
-      return list.length ? `<optgroup label="${label}">${list.map((p) => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("")}</optgroup>` : "";
-    }).join("");
+    const exams = await getExams();
+    const groups = [];
+    for (const e of exams) for (const [cat, label] of [["pyq", "previous year"], ["mock", "mock tests"]]) {
+      const list = sortPapers(papers.filter((p) => (p.exam || "cce") === e.id && (p.category || "pyq") === cat));
+      if (list.length) groups.push(`<optgroup label="${esc(e.short)}, ${label}">${list.map((p) => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("")}</optgroup>`);
+    }
+    $("paperSel").innerHTML = groups.join("");
     const wanted = qs("paper");
     if (wanted && papers.some((p) => p.id === wanted)) $("paperSel").value = wanted;
 

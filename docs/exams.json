@@ -1,0 +1,44 @@
+[
+  {
+    "id": "cce",
+    "short": "CCE",
+    "name": "Combined Competitive Exam",
+    "about": "Prelims General Studies for SDM, DSP and other state posts",
+    "color": "#1F2F86"
+  },
+  {
+    "id": "tre",
+    "short": "TRE",
+    "name": "School Teacher Recruitment",
+    "about": "Primary, secondary and senior secondary teacher posts",
+    "color": "#0F7B5F"
+  },
+  {
+    "id": "aedo",
+    "short": "AEDO",
+    "name": "Assistant Education Development Officer",
+    "about": "General studies, aptitude and language papers",
+    "color": "#9A6A00"
+  },
+  {
+    "id": "ae",
+    "short": "AE",
+    "name": "Combined Assistant Engineer",
+    "about": "Civil, mechanical and electrical engineering posts",
+    "color": "#0E6E8C"
+  },
+  {
+    "id": "apo",
+    "short": "APO",
+    "name": "Assistant Prosecution Officer",
+    "about": "Law, general studies and general Hindi",
+    "color": "#6B3FA0"
+  },
+  {
+    "id": "judiciary",
+    "short": "Judiciary",
+    "name": "Bihar Judicial Services",
+    "about": "Civil Judge (Junior Division) preliminary",
+    "color": "#8C2F39"
+  }
+]
