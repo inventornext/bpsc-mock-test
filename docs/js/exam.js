@@ -4,6 +4,7 @@
 
 import {
   requireUser, logout, loadProgress, saveProgress, clearProgress, saveAttempt, getPaper, friendlyError,
+  addLeaderboardEntry,
 } from "./fb.js";
 
 const user = await requireUser();
@@ -309,6 +310,8 @@ async function submit(auto) {
     showSubmitError(friendlyError(e));
     return;
   }
+
+  await addLeaderboardEntry(attempt);   // counts only if it's the first attempt
 
   state.submitted = true;
   Store.remove(localKey());

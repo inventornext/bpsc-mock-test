@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toppers | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <main class="container" style="max-width:860px">
+    <h1 class="page-title">Toppers</h1>
+    <p class="page-sub">Top 10 scores for each paper. Only a student's first attempt counts, so retakes after seeing the answers don't.</p>
+
+    <div class="admin-tools">
+      <select id="paperSel" style="min-width:260px"></select>
+    </div>
+
+    <div id="board"><div class="loading">Loading...</div></div>
+    <div id="mine" style="margin-top:14px"></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script type="module">
+    import { requireUser, logout, getPaperIndex, getToppers, getMyLeaderboardEntry, friendlyError } from "./js/fb.js";
+
+    const user = await requireUser();
+    renderTopbar(user, logout);
+    document.title = `Toppers | ${SITE.name}`;
+    const $ = (id) => document.getElementById(id);
+
+    let papers = [];
+    try { papers = await getPaperIndex(); } catch (e) { showFatal($("board"), friendlyError(e)); throw e; }
+    if (!papers.length) { $("board").innerHTML = `<div class="empty">No papers yet.</div>`; throw new Error("no papers"); }
+
+    const groups = [["pyq", "Previous year papers"], ["mock", "Mock tests"]];
+    $("paperSel").innerHTML = groups.map(([cat, label]) => {
+      const list = sortPapers(papers.filter((p) => (p.category || "pyq") === cat));
+      return list.length ? `<optgroup label="${label}">${list.map((p) => `<option value="${esc(p.id)}">${esc(p.title)}</option>`).join("")}</optgroup>` : "";
+    }).join("");
+    const wanted = qs("paper");
+    if (wanted && papers.some((p) => p.id === wanted)) $("paperSel").value = wanted;
+
+    async function show() {
+      const id = $("paperSel").value;
+      history.replaceState(null, "", `?paper=${encodeURIComponent(id)}`);
+      $("board").innerHTML = `<div class="loading">Loading...</div>`;
+      $("mine").innerHTML = "";
+      let top = [], me = null;
+      try {
+        [top, me] = await Promise.all([getToppers(id, 10), getMyLeaderboardEntry(id, user.uid).catch(() => null)]);
+      } catch (e) { showFatal($("board"), "Could not load toppers: " + friendlyError(e)); return; }
+
+      if (!top.length) {
+        $("board").innerHTML = `<div class="empty">No one has taken this paper yet. Be the first!</div>`;
+      } else {
+        const medal = ["&#129351;", "&#129352;", "&#129353;"];
+        $("board").innerHTML = `
+          <div style="overflow-x:auto"><table class="history leaderboard">
+            <thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>Right / Wrong</th><th>Time</th><th>Date</th></tr></thead>
+            <tbody>${top.map((t, i) => `
+              <tr class="${t.uid === user.uid ? "me" : ""}">
+                <td class="rank">${medal[i] || i + 1}</td>
+                <td><b>${esc(t.name)}</b>${t.uid === user.uid ? ` <span class="badge c">You</span>` : ""}</td>
+                <td><b>${fmtNum(t.score)}</b> / ${fmtNum(t.max)}</td>
+                <td>${t.correct} / ${t.wrong}</td>
+                <td>${fmtDuration(t.timeTaken)}</td>
+                <td>${new Date(t.submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</td>
+              </tr>`).join("")}</tbody>
+          </table></div>`;
+      }
+      if (me && !top.some((t) => t.uid === user.uid)) {
+        $("mine").innerHTML = `<div class="empty" style="text-align:left">Your first attempt: <b>${fmtNum(me.score)}</b> / ${fmtNum(me.max)}. Keep practising to reach the top 10!</div>`;
+      } else if (!me) {
+        $("mine").innerHTML = `<p style="color:var(--muted); font-size:14px">You haven't taken this paper yet. <a href="exam.html?paper=${encodeURIComponent(id)}">Take it now</a>; your first attempt is the one that counts.</p>`;
+      }
+    }
+    $("paperSel").onchange = show;
+    show();
+  </script>
+</body>
+</html>

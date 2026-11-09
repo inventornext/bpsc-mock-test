@@ -88,10 +88,11 @@ async function loadPapers() {
     if (!papers.length) { box.innerHTML = `<div class="empty">No papers yet. Add one above.</div>`; return; }
     box.innerHTML = `
       <div style="overflow-x:auto"><table class="history">
-        <thead><tr><th>Paper</th><th>Year</th><th>Questions</th><th>Free</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Paper</th><th>Type</th><th>Year</th><th>Questions</th><th>Free</th><th>Status</th><th></th></tr></thead>
         <tbody>${papers.map((p) => `
           <tr>
             <td><b>${esc(p.title)}</b><span class="muted" style="display:block;color:var(--muted);font-size:12px">${esc(p.id)}.json</span></td>
+            <td>${p.category === "mock" ? "Mock test" : "Previous year"}</td>
             <td>${esc(p.year ?? "")}</td>
             <td>${p.count}</td>
             <td><input type="checkbox" data-free="${esc(p.id)}" ${p.free ? "checked" : ""} title="Free for everyone"></td>
@@ -184,6 +185,7 @@ async function openEditor(id, onlyFlagged) {
   $("eMarks").value = paper.marks;
   $("eNegative").value = paper.negative;
   $("eFree").checked = !!paper.free;
+  $("eCategory").value = paper.category === "mock" ? "mock" : "pyq";
   $("onlyFlagged").checked = onlyFlagged;
   dirty = false;
   $("saveMsg").textContent = "";
@@ -272,6 +274,7 @@ $("eBonus").onchange = (e) => {
 $("eChecked").onchange = (e) => { paper.questions[cur].checked = e.target.checked; markDirty(); refreshQ(); };
 ["eTitle", "eYear", "eDuration", "eMarks", "eNegative"].forEach((id) => ($(id).oninput = markDirty));
 $("eFree").onchange = markDirty;
+$("eCategory").onchange = markDirty;
 
 $("qgrid").onclick = (e) => { const b = e.target.closest("[data-i]"); if (b) showQ(+b.dataset.i); };
 $("onlyFlagged").onchange = drawGrid;
@@ -297,7 +300,7 @@ async function save() {
   try {
     const body = {
       title: $("eTitle").value, year: $("eYear").value, duration: $("eDuration").value,
-      marks: $("eMarks").value, negative: $("eNegative").value, free: $("eFree").checked, questions: paper.questions,
+      marks: $("eMarks").value, negative: $("eNegative").value, free: $("eFree").checked, category: $("eCategory").value, questions: paper.questions,
     };
     paper = await api(`/api/paper/${paper.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     dirty = false;

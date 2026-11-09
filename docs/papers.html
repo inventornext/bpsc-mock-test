@@ -15,6 +15,10 @@
 
     <div id="unlockBanner"></div>
 
+    <div class="tabs paper-tabs hidden" id="paperTabs">
+      <button class="tab active" data-cat="pyq">Previous year papers</button>
+      <button class="tab" data-cat="mock">Mock tests</button>
+    </div>
     <div class="paper-grid" id="papers"><div class="empty">Loading papers...</div></div>
 
     <h2 class="section-title">Your attempts</h2>
@@ -62,10 +66,29 @@
         </div>`;
     }
 
-    if (!papers.length) {
+    // ---- tabs: previous year papers / mock tests ----
+    papers.forEach((p) => (p.category = p.category === "mock" ? "mock" : "pyq"));
+    const counts = { pyq: papers.filter((p) => p.category === "pyq").length, mock: papers.filter((p) => p.category === "mock").length };
+    const tabs = document.getElementById("paperTabs");
+    let cat = Store.get("bpsc_papers_tab", "pyq");
+    if (!counts[cat]) cat = counts.pyq ? "pyq" : "mock";
+    if (counts.pyq && counts.mock) {
+      tabs.classList.remove("hidden");
+      tabs.querySelector('[data-cat="pyq"]').textContent = `Previous year papers (${counts.pyq})`;
+      tabs.querySelector('[data-cat="mock"]').textContent = `Mock tests (${counts.mock})`;
+    }
+    tabs.onclick = (e) => {
+      const b = e.target.closest(".tab"); if (!b) return;
+      cat = b.dataset.cat; Store.set("bpsc_papers_tab", cat); drawPapers();
+    };
+
+    function drawPapers() {
+    tabs.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.cat === cat));
+    const shown = sortPapers(papers.filter((p) => p.category === cat));
+    if (!shown.length) {
       box.innerHTML = `<div class="empty">No papers yet.</div>`;
     } else {
-      box.innerHTML = papers.map((p) => {
+      box.innerHTML = shown.map((p) => {
         const mine = attempts.filter((a) => a.paperId === p.id);
         const best = mine.length ? Math.max(...mine.map((a) => a.score)) : null;
         const prog = progress[p.id];
@@ -74,7 +97,7 @@
         return `
           <div class="paper-card${locked ? " locked" : ""}">
             <div style="display:flex; gap:6px; align-items:center">
-              <span class="year">${esc(p.year ?? "")}</span>
+              ${p.category === "mock" ? `<span class="year">Mock</span>` : `<span class="year">${esc(p.year ?? "")}</span>`}
               ${p.free ? `<span class="free-tag">Free</span>` : locked ? `<span class="lock-tag">&#128274; Locked</span>` : ""}
             </div>
             <h3>${esc(p.title)}</h3>
@@ -89,10 +112,13 @@
               ${locked
                 ? `<a class="btn" href="buy.html">Unlock &#8377;${PAYMENT.price}</a>`
                 : `<a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(p.id)}">${inProgress ? "Resume" : "Start test"}</a>`}
+              <a class="btn" href="leaderboard.html?paper=${encodeURIComponent(p.id)}" title="Top 10" style="flex:0 0 auto">&#127942; Toppers</a>
             </div>
           </div>`;
       }).join("");
     }
+    }
+    drawPapers();
 
     if (!attempts.length) {
       hist.innerHTML = `<div class="empty">No attempts yet. Finish a test and your results show up here, on any device you log in from.</div>`;

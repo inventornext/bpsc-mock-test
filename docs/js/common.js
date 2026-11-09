@@ -58,12 +58,21 @@ function initials(name) {
 
 function fmtNum(n) { return Number.isInteger(n) ? String(n) : n.toFixed(2); }
 
+// Previous year papers: newest first. Mock tests: Mock Test 1, 2, ... 10 in order.
+function sortPapers(list) {
+  return [...list].sort((a, b) =>
+    (a.category === "mock" && b.category === "mock")
+      ? String(a.title).localeCompare(String(b.title), undefined, { numeric: true })
+      : (b.year || 0) - (a.year || 0) || String(a.title).localeCompare(String(b.title), undefined, { numeric: true }));
+}
+
 function renderTopbar(user, onLogout) {
   const el = document.getElementById("topbar");
   if (!el) return;
   el.innerHTML = `
     <a class="brand" href="papers.html"><span class="brand-badge">${esc(SITE.short)}</span><span class="full">${esc(SITE.name)}</span></a>
     <div class="user">
+      <a class="btn btn-ghost" href="leaderboard.html">Toppers</a>
       ${user.isAdmin ? `<a class="btn btn-ghost" href="admin.html">Admin</a>` : ""}
       <span>${esc(user.name)}</span>
       <button class="btn btn-ghost" id="logoutBtn">Log out</button>

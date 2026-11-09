@@ -22,6 +22,14 @@
     <h2 class="section-title">Students</h2>
     <div id="students"><div class="loading">Loading...</div></div>
 
+    <h2 class="section-title">Toppers</h2>
+    <p class="page-sub" style="margin-bottom:12px">Toppers update by themselves when students submit. Click this once to include tests taken before toppers existed, or to re-score everyone after you fix an answer key.</p>
+    <div class="admin-tools">
+      <button class="btn" id="rebuildBtn">Rebuild toppers from all attempts</button>
+      <a class="btn" href="leaderboard.html">View toppers</a>
+      <span id="rebuildMsg" style="font-size:14px"></span>
+    </div>
+
     <h2 class="section-title">All attempts</h2>
     <div class="admin-tools">
       <input id="search" placeholder="Search name or email">
@@ -37,6 +45,7 @@
     import {
       requireUser, logout, allAttempts, allUsers, deleteAttempt, friendlyError,
       listPayments, listAccess, grantAccess, revokeAccess, rejectPayment,
+      rebuildLeaderboards, getPaper,
     } from "./js/fb.js";
 
     const user = await requireUser({ admin: true });
@@ -215,6 +224,21 @@
         attempts = attempts.filter((a) => a.id !== d.dataset.id);
         drawAttempts(); drawSummary();
       } catch (err) { alert(friendlyError(err)); }
+    };
+
+    // ---- toppers ----
+    document.getElementById("rebuildBtn").onclick = async (e) => {
+      const btn = e.target, msg = document.getElementById("rebuildMsg");
+      btn.disabled = true; msg.textContent = "Working...";
+      try {
+        const ids = [...new Set(attempts.map((a) => a.paperId))];
+        const papersById = {};
+        for (const id of ids) { const p = await getPaper(id); if (p) papersById[id] = p; }
+        const r = await rebuildLeaderboards(attempts, papersById);
+        msg.innerHTML = `<span class="msg-ok" style="color:var(--green);font-weight:600">Done: ${r.written} first attempts counted${r.removed ? `, ${r.removed} stale entries removed` : ""}.</span>`;
+      } catch (err) {
+        msg.innerHTML = `<span style="color:var(--red)">${esc(friendlyError(err))}</span>`;
+      } finally { btn.disabled = false; }
     };
 
     // ---- CSV ----

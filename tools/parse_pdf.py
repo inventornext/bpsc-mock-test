@@ -261,8 +261,14 @@ def rebuild_index():
     papers = []
     for f in paper_files():
         d = json.loads(f.read_text(encoding="utf-8"))
-        if d.get("id") != f.stem:   # file name wins, so ids always match
+        changed = False
+        if d.get("id") != f.stem:            # file name wins, so ids always match
             d["id"] = f.stem
+            changed = True
+        if d.get("category") not in ("pyq", "mock"):
+            d["category"] = guess_category(f.stem, d.get("title", ""))
+            changed = True
+        if changed:
             f.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
         papers.append({
             "id": d["id"],
@@ -273,9 +279,15 @@ def rebuild_index():
             "marks": d.get("marks", 1),
             "negative": d.get("negative", 0),
             "free": bool(d.get("free", False)),
+            "category": d["category"],
         })
     papers.sort(key=lambda p: (p.get("year") or 0), reverse=True)
     return papers
+
+
+def guess_category(pid, title=""):
+    """'mock' for mock tests, 'pyq' for previous year papers."""
+    return "mock" if "mock" in f"{pid} {title}".lower() else "pyq"
 
 
 def check_question(q):
@@ -353,6 +365,7 @@ def convert(pdf_path, year, paper_id=None, title=None, duration=120, marks=1, ne
         "marks": marks,
         "negative": negative,
         "free": False,
+        "category": "pyq",
         "questions": questions,
     }
     out_file = PAPERS_DIR / f"{paper_id}.json"

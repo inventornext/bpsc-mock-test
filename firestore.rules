@@ -52,6 +52,24 @@ service cloud.firestore {
         && d.name is string && d.name.size() <= 80;
     }
 
+    // Toppers: one entry per student per paper, from their FIRST attempt only.
+    // Any logged-in user can read (names and scores only). Students can create
+    // their own entry once and never change it; admins can rebuild or delete.
+    match /leaderboards/{paperId}/entries/{uid} {
+      allow read: if signedIn();
+      allow create: if isMe(uid) && validEntry();
+      allow update, delete: if isAdmin();
+      allow create: if isAdmin();
+    }
+    function validEntry() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['name', 'score', 'max', 'correct', 'wrong', 'timeTaken', 'submittedAt', 'attemptId'])
+        && d.name is string && d.name.size() <= 80
+        && d.score is number && d.max is number && d.score <= d.max && d.max <= 1000
+        && d.timeTaken is number && d.timeTaken >= 0
+        && d.attemptId is string;
+    }
+
     // Student profile
     match /users/{uid} {
       allow read: if isMe(uid) || isAdmin();

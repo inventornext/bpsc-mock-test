@@ -199,6 +199,7 @@ def api_save_paper(pid):
             "marks": float(data["marks"]),
             "negative": float(data["negative"]),
             "free": bool(data.get("free", False)),
+            "category": data.get("category") if data.get("category") in ("pyq", "mock") else "pyq",
             "questions": [clean_question(q, i) for i, q in enumerate(data["questions"])],
         }
     except (KeyError, ValueError, TypeError) as e:

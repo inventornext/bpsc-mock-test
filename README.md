@@ -58,6 +58,8 @@ Your browser opens the Paper Manager at http://localhost:8000/manager/ . Keep th
 3. **Preview:** the **Preview** button opens the paper on your local copy of the site (log in as usual).
 4. **Publish:** type what changed and click **Publish**. It uploads changed papers to Firebase (live straight away), then pushes any website code changes to GitHub (`git add`, `commit`, `pull`, `push`).
 
+**Mock tests and previous year papers** show in separate tabs on the site. Each paper's **Type** is set in **Check & edit**. Files with "mock" in the name or title are marked as mock tests automatically. You can also drop your own JSON files into `papers/`: the file name becomes the paper's id, so use lowercase letters, numbers and `_` (e.g. `mock_test_3.json`).
+
 You can also delete a paper (then Publish), or re-convert the same PDF. Re-converting replaces the paper and loses any edits you made to it, and the manager asks before doing that.
 
 The PDF is copied into `pdfs/` and the paper is saved in `papers/`. Neither is uploaded to GitHub. Back up `papers/` somewhere safe: it holds your edits.
@@ -137,6 +139,12 @@ The Paper Manager uploads papers with a Firebase **service account key**. This k
 
 Never put this file in `docs/`, email it, or upload it anywhere.
 
+## Toppers
+
+Every paper has a **Top 10** list (the **Toppers** link in the top bar, and on each paper card and result page). Only a student's **first attempt** counts, so retakes after seeing the answers don't. Ties go to whoever finished faster. Students see names and scores only, never emails.
+
+On the Admin page, **Rebuild toppers** re-scores every first attempt against the current answer key. Use it once after this update (to include older attempts), and again whenever you fix an answer key.
+
 ## 4. Preview on your computer
 
 While the Paper Manager is running, your site is at http://localhost:8000/ and shows your **local, unpublished** papers, so you can check edits before publishing. Or run `python tools/serve.py` on its own (that shows the published papers from Firebase). (Opening `docs/index.html` by double-clicking won't work, because browsers block that.)
@@ -154,6 +162,7 @@ While the Paper Manager is running, your site is at http://localhost:8000/ and s
 | Paper list | Firestore `meta/papers` |
 | Paid students | Firestore `access` (only admins can change it) |
 | Payment requests | Firestore `payments` |
+| Toppers | Firestore `leaderboards/<paper>/entries` (first attempt per student) |
 | Your local copies | `papers/` folder on your computer (back it up, e.g. to Google Drive) |
 
 Free plan limits: 50,000 reads and 20,000 writes a day, 1 GB storage. One full test uses roughly 10 to 30 writes, so that's around 1,000 tests a day. If a limit is hit, the database pauses until the next day; you are never charged on the Spark plan.

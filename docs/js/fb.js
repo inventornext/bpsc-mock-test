@@ -9,6 +9,7 @@
 //   papers/{paperId}              full paper (uploaded by the Paper Manager)
 //   access/{uid}                  exists = this student has paid (set by admin)
 //   payments/{uid}                student's "I have paid" request with payment reference
+//   leaderboards/{paper}/entries/{uid}  each student's FIRST attempt score (for toppers)
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
 import {
@@ -17,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
-  serverTimestamp, connectFirestoreEmulator,
+  orderBy, limit, serverTimestamp, connectFirestoreEmulator,
 } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
 import { firebaseConfig, ALLOW_SIGNUP } from "./firebase-config.js";
 
@@ -154,6 +155,70 @@ export async function getPaper(id) {
     if (e.code === "permission-denied") return null;
     throw e;
   }
+}
+
+/* ---------------- toppers (leaderboard) ---------------- */
+
+// Saves a student's first attempt. Later attempts are refused by the rules,
+// so retakes after seeing the answers don't count.
+export async function addLeaderboardEntry(attempt) {
+  const ref = doc(db, "leaderboards", attempt.paperId, "entries", attempt.uid);
+  try {
+    const existing = await getDoc(ref);
+    if (existing.exists()) return false;
+    await setDoc(ref, leaderboardEntry(attempt));
+    return true;
+  } catch (e) {
+    console.warn("leaderboard entry not saved", e);
+    return false;
+  }
+}
+
+function leaderboardEntry(a) {
+  return {
+    name: a.name || "Student", score: a.score, max: a.max, correct: a.correct, wrong: a.wrong,
+    timeTaken: Math.round(a.timeTaken), submittedAt: a.submittedAt, attemptId: a.id,
+  };
+}
+
+// Top n by score; ties go to whoever finished faster.
+export async function getToppers(paperId, n = 10) {
+  const s = await getDocs(query(collection(db, "leaderboards", paperId, "entries"), orderBy("score", "desc"), limit(50)));
+  return s.docs.map((d) => ({ uid: d.id, ...d.data() }))
+    .sort((a, b) => b.score - a.score || a.timeTaken - b.timeTaken || a.submittedAt - b.submittedAt)
+    .slice(0, n);
+}
+
+export async function getMyLeaderboardEntry(paperId, uid) {
+  const s = await getDoc(doc(db, "leaderboards", paperId, "entries", uid));
+  return s.exists() ? s.data() : null;
+}
+
+// Admin only: rebuild every leaderboard from the attempts, re-scoring each first
+// attempt against the current answer key (so a faked score can't stay on top).
+export async function rebuildLeaderboards(attempts, papersById) {
+  const first = {};
+  for (const a of attempts) {
+    const k = `${a.paperId}|${a.uid}`;
+    if (!first[k] || a.submittedAt < first[k].submittedAt) first[k] = a;
+  }
+  let written = 0, removed = 0;
+  const keep = {};
+  for (const a of Object.values(first)) {
+    const paper = papersById[a.paperId];
+    if (!paper) continue;
+    const s = scoreAttempt(paper, a.answers || {});
+    await setDoc(doc(db, "leaderboards", a.paperId, "entries", a.uid), leaderboardEntry({ ...a, ...s }));
+    (keep[a.paperId] ??= new Set()).add(a.uid);
+    written++;
+  }
+  for (const pid of Object.keys(papersById)) {
+    const s = await getDocs(collection(db, "leaderboards", pid, "entries"));
+    for (const d of s.docs) {
+      if (!keep[pid] || !keep[pid].has(d.id)) { await deleteDoc(d.ref); removed++; }
+    }
+  }
+  return { written, removed };
 }
 
 /* ---------------- payments and access ---------------- */
