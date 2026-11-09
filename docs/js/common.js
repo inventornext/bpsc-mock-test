@@ -119,7 +119,7 @@ function renderTopbar(user, onLogout) {
   const el = document.getElementById("topbar");
   if (!el) return;
   el.innerHTML = `
-    <a class="brand" href="papers.html"><span class="brand-badge">${esc(SITE.short)}</span><span class="full">${esc(SITE.name)}</span></a>
+    <a class="brand" href="index.html"><span class="brand-badge">${esc(SITE.short)}</span><span class="full">${esc(SITE.name)}</span></a>
     <div class="user">
       <a class="btn btn-ghost" href="leaderboard.html">Toppers</a>
       ${user.isAdmin ? `<a class="btn btn-ghost" href="admin.html">Admin</a>` : ""}
