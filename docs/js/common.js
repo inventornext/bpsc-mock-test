@@ -58,6 +58,15 @@ function initials(name) {
 
 function fmtNum(n) { return Number.isInteger(n) ? String(n) : n.toFixed(2); }
 
+// Subscription length; config.js can override with PAYMENT.validityDays
+function planDays() { return (typeof PAYMENT !== "undefined" && PAYMENT.validityDays) || 365; }
+function planLabel() {
+  const d = planDays();
+  return d % 365 === 0 ? (d === 365 ? "1 year" : `${d / 365} years`) : d % 30 === 0 ? `${d / 30} months` : `${d} days`;
+}
+function fmtDay(ts) { return new Date(ts).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); }
+function daysLeft(ts) { return Math.ceil((ts - Date.now()) / 86400000); }
+
 // Previous year papers: newest first. Mock tests: Mock Test 1, 2, ... 10 in order.
 function sortPapers(list) {
   return [...list].sort((a, b) =>

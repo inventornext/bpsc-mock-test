@@ -52,7 +52,7 @@
     renderTopbar(user, logout);
     document.title = `Admin | ${SITE.name}`;
 
-    let attempts = [], users = [], payments = [], access = {};
+    let attempts = [], users = [], payments = [], access = {};   // access: uid -> { grantedAt, expiresAt }
     try {
       [attempts, users, payments, access] = await Promise.all([allAttempts(), allUsers(), listPayments(), listAccess()]);
     } catch (e) {
@@ -60,13 +60,24 @@
       throw e;
     }
 
+    const isActive = (a) => !!a && (!a.expiresAt || a.expiresAt > Date.now());
+    function accessCell(a) {
+      if (!a) return "";
+      if (!a.expiresAt) return `<span class="badge c">Lifetime</span>`;
+      if (a.expiresAt > Date.now()) {
+        const left = daysLeft(a.expiresAt);
+        return `<span class="badge ${left <= 15 ? "b" : "c"}">Until ${fmtDay(a.expiresAt)}</span>`;
+      }
+      return `<span class="badge w">Expired ${fmtDay(a.expiresAt)}</span>`;
+    }
+
     // ---- summary ----
     function drawSummary() {
       const avgPct = attempts.length ? attempts.reduce((t, a) => t + (a.score / a.max) * 100, 0) / attempts.length : 0;
       document.getElementById("summary").innerHTML = `
         <div class="stat"><b>${users.length}</b><span>Students signed up</span></div>
-        <div class="stat"><b>${Object.keys(access).length}</b><span>Paid students</span></div>
-        <div class="stat"><b>&#8377;${payments.filter((p) => p.status === "approved").reduce((t, p) => t + (Number(p.amount) || 0), 0)}</b><span>Approved payments</span></div>
+        <div class="stat"><b>${Object.values(access).filter(isActive).length}</b><span>Active paid students</span></div>
+        <div class="stat"><b>&#8377;${payments.filter((p) => p.status === "approved").reduce((t, p) => t + (Number(p.amount) || 0), 0)}</b><span>Approved (latest payment per student)</span></div>
         <div class="stat"><b>${new Set(attempts.map((a) => a.uid)).size}</b><span>Students who took a test</span></div>
         <div class="stat"><b>${attempts.length}</b><span>Tests submitted</span></div>
         <div class="stat"><b>${avgPct.toFixed(1)}%</b><span>Average score</span></div>`;
@@ -105,9 +116,11 @@
       const p = payments.find((x) => x.uid === uid);
       try {
         if (a) {
-          if (!confirm(`Approve ${p.name}? Check that reference ${p.ref} for \u20b9${p.amount} is in your payments first.`)) return;
-          await grantAccess(uid, { ref: p.ref, method: p.method, amount: p.amount });
-          p.status = "approved"; access[uid] = { grantedAt: Date.now() };
+          const cur = access[uid];
+          const note = isActive(cur) && cur.expiresAt ? ` Their access runs until ${fmtDay(cur.expiresAt)}; ${planLabel()} will be added on top.` : ` This gives ${planLabel()} of access from today.`;
+          if (!confirm(`Approve ${p.name}? Check that reference ${p.ref} for \u20b9${p.amount} is in your payments first.${note}`)) return;
+          await grantAccess(uid, { ref: p.ref, method: p.method, amount: p.amount }, planDays());
+          p.status = "approved"; access = await listAccess();
         } else {
           if (!confirm(`Reject ${p.name}'s payment reference ${p.ref}?`)) return;
           await rejectPayment(uid);
@@ -139,9 +152,10 @@
         <tbody>${studentRows.map((s) => `
           <tr>
             <td><b>${esc(s.name || "(no name)")}</b><span class="muted">${esc(s.email || "")}</span></td>
-            <td style="white-space:nowrap">${access[s.uid]
-              ? `<span class="badge c">Paid</span> <a href="#" data-revoke="${esc(s.uid)}" style="font-size:12px;color:var(--red)">remove</a>`
-              : `<a href="#" data-grant="${esc(s.uid)}" style="font-size:13px">Give access</a>`}</td>
+            <td style="white-space:nowrap">${access[s.uid] ? accessCell(access[s.uid]) + " " : ""}
+              ${isActive(access[s.uid])
+                ? `<a href="#" data-grant="${esc(s.uid)}" style="font-size:12px">+${planLabel()}</a> &middot; <a href="#" data-revoke="${esc(s.uid)}" style="font-size:12px;color:var(--red)">remove</a>`
+                : `<a href="#" data-grant="${esc(s.uid)}" style="font-size:13px">Give ${planLabel()}</a>`}</td>
             <td>${s.count}</td>
             <td>${s.best !== null ? s.best.toFixed(1) + "%" : "-"}</td>
             <td>${s.avg !== null ? s.avg.toFixed(1) + "%" : "-"}</td>
@@ -160,9 +174,9 @@
         const st = studentRows.find((x) => x.uid === uid);
         try {
           if (g) {
-            if (!confirm(`Give ${st.name || st.email} full access without a payment request?`)) return;
-            await grantAccess(uid, { manual: true });
-            access[uid] = { grantedAt: Date.now() };
+            if (!confirm(`Give ${st.name || st.email} ${planLabel()} of access without a payment request?`)) return;
+            await grantAccess(uid, { manual: true }, planDays());
+            access = await listAccess();
             const p = payments.find((x) => x.uid === uid); if (p) p.status = "approved";
           } else {
             if (!confirm(`Remove ${st.name || st.email}'s paid access?`)) return;

@@ -49,20 +49,38 @@
       throw e;
     }
 
-    // unlock banner for students who haven't paid
+    // unlock / renew banner
     const lockedCount = papers.filter((p) => !p.free).length;
+    const banner = document.getElementById("unlockBanner");
+    const freeCount = papers.length - lockedCount;
     if (!user.hasAccess && lockedCount) {
       const st = payment && payment.status;
-      document.getElementById("unlockBanner").innerHTML = `
-        <div class="unlock-banner ${st === "pending" ? "pending" : ""}">
-          <div>
-            ${st === "pending"
-              ? `<b>Payment received, waiting for approval.</b><span>We'll unlock all papers soon. You can keep using the free papers meanwhile.</span>`
-              : st === "rejected"
-              ? `<b>We couldn't confirm your payment.</b><span>Check the payment reference and send it again.</span>`
-              : `<b>Unlock all ${papers.length} papers for &#8377;${PAYMENT.price}</b><span>One-time payment, lifetime access. ${papers.length - lockedCount ? `${papers.length - lockedCount} free paper${papers.length - lockedCount > 1 ? "s" : ""} to try first.` : ""}</span>`}
-          </div>
-          <a class="btn ${st === "pending" ? "" : "btn-primary"}" href="buy.html">${st === "pending" ? "View status" : st === "rejected" ? "Send again" : "Unlock now"}</a>
+      let head, sub, btn, cls = "";
+      if (st === "pending") {
+        cls = "pending"; btn = "View status";
+        head = "Payment received, waiting for approval.";
+        sub = "We'll unlock all papers soon. You can keep using the free papers meanwhile.";
+      } else if (st === "rejected") {
+        btn = "Send again"; head = "We couldn't confirm your payment.";
+        sub = "Check the payment reference and send it again.";
+      } else if (user.accessExpiredAt) {
+        btn = "Renew now"; head = `Your access ended on ${fmtDay(user.accessExpiredAt)}.`;
+        sub = `Renew for &#8377;${PAYMENT.price} to unlock all ${papers.length} papers for another ${planLabel()}.`;
+      } else {
+        btn = "Unlock now"; head = `Unlock all ${papers.length} papers for &#8377;${PAYMENT.price}`;
+        sub = `${planLabel()} access from the day of payment.${freeCount ? ` ${freeCount} free paper${freeCount > 1 ? "s" : ""} to try first.` : ""}`;
+      }
+      banner.innerHTML = `
+        <div class="unlock-banner ${cls}">
+          <div><b>${head}</b><span>${sub}</span></div>
+          <a class="btn ${cls ? "" : "btn-primary"}" href="buy.html">${btn}</a>
+        </div>`;
+    } else if (user.hasAccess && !user.isAdmin && user.accessExpiresAt && daysLeft(user.accessExpiresAt) <= 15) {
+      banner.innerHTML = `
+        <div class="unlock-banner">
+          <div><b>Your access ends in ${daysLeft(user.accessExpiresAt)} day${daysLeft(user.accessExpiresAt) === 1 ? "" : "s"} (${fmtDay(user.accessExpiresAt)}).</b>
+          <span>Renew now and the new ${planLabel()} is added on top, so you don't lose any days.</span></div>
+          <a class="btn btn-primary" href="buy.html">Renew</a>
         </div>`;
     }
 

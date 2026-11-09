@@ -10,8 +10,11 @@ service cloud.firestore {
     function isAdmin() {
       return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
+    // Paid and not expired. Access docs without expiresAt are older lifetime purchases.
     function hasPaid() {
-      return signedIn() && exists(/databases/$(database)/documents/access/$(request.auth.uid));
+      let path = /databases/$(database)/documents/access/$(request.auth.uid);
+      return signedIn() && exists(path)
+        && (!('expiresAt' in get(path).data) || get(path).data.expiresAt > request.time.toMillis());
     }
 
     // Admin list: created by hand in the console
@@ -41,7 +44,8 @@ service cloud.firestore {
     match /payments/{uid} {
       allow read: if isMe(uid) || isAdmin();
       allow create: if isMe(uid) && validPayment();
-      allow update: if (isMe(uid) && resource.data.status != 'approved' && validPayment()) || isAdmin();
+      // students can send a new request any time (to fix a typo or renew); it always starts as pending
+      allow update: if (isMe(uid) && validPayment()) || isAdmin();
       allow delete: if isAdmin();
     }
     function validPayment() {

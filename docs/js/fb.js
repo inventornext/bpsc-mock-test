@@ -7,7 +7,7 @@
 //   admins/{uid}                  exists = this user is an admin (create it in the console)
 //   meta/papers                   { list: [...] } paper list shown on the papers page
 //   papers/{paperId}              full paper (uploaded by the Paper Manager)
-//   access/{uid}                  exists = this student has paid (set by admin)
+//   access/{uid}                  this student has paid: { grantedAt, expiresAt } (no expiresAt = lifetime)
 //   payments/{uid}                student's "I have paid" request with payment reference
 //   leaderboards/{paper}/entries/{uid}  each student's FIRST attempt score (for toppers)
 
@@ -53,7 +53,7 @@ export function currentUser() {
 }
 
 async function buildUser(u) {
-  let isAdmin = false, paid = false, name = u.displayName;
+  let isAdmin = false, paid = false, expiresAt = null, expired = false, name = u.displayName;
   try {
     const [a, p, acc] = await Promise.all([
       getDoc(doc(db, "admins", u.uid)),
@@ -61,7 +61,11 @@ async function buildUser(u) {
       getDoc(doc(db, "access", u.uid)),
     ]);
     isAdmin = a.exists();
-    paid = acc.exists();
+    if (acc.exists()) {
+      expiresAt = acc.data().expiresAt ?? null;          // null = lifetime (older purchases)
+      paid = !expiresAt || expiresAt > Date.now();
+      expired = !paid;
+    }
     if (p.exists() && p.data().name) name = p.data().name;
   } catch (e) {
     console.warn("profile load failed", e);
@@ -69,6 +73,8 @@ async function buildUser(u) {
   return {
     uid: u.uid, email: u.email, name: name || u.email.split("@")[0],
     isAdmin, hasAccess: paid || isAdmin,
+    accessExpiresAt: paid ? expiresAt : null,   // null with hasAccess = lifetime
+    accessExpiredAt: expired ? expiresAt : null,
   };
 }
 
@@ -248,8 +254,22 @@ export async function listAccess() {
   return out;
 }
 
-export async function grantAccess(uid, info = {}) {
-  await setDoc(doc(db, "access", uid), { grantedAt: Date.now(), ...info });
+// Gives (or renews) access for `days`. Renewing early adds the time on top.
+// Older lifetime grants (no expiresAt) stay lifetime.
+export async function grantAccess(uid, info = {}, days = 365) {
+  const ref = doc(db, "access", uid);
+  const old = await getDoc(ref);
+  const now = Date.now();
+  let expiresAt;
+  if (old.exists() && !old.data().expiresAt) {
+    expiresAt = null;                                      // keep lifetime
+  } else {
+    const base = Math.max(now, (old.exists() && old.data().expiresAt) || 0);
+    expiresAt = base + days * 24 * 60 * 60 * 1000;
+  }
+  const data = { grantedAt: now, ...info };
+  if (expiresAt) data.expiresAt = expiresAt;
+  await setDoc(ref, data);
   const p = await getDoc(doc(db, "payments", uid));
   if (p.exists()) await setDoc(doc(db, "payments", uid), { ...p.data(), status: "approved", decidedAt: Date.now() });
 }

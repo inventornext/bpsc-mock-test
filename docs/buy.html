@@ -11,7 +11,7 @@
 
   <main class="container" style="max-width:920px">
     <h1 class="page-title">Unlock all papers</h1>
-    <p class="page-sub">Pay once, practise every paper for life.</p>
+    <p class="page-sub" id="pageSub">Pay once, practise every paper.</p>
 
     <div id="status"></div>
 
@@ -68,20 +68,32 @@
     const $ = (id) => document.getElementById(id);
     const price = PAYMENT.price;
 
-    // ---- already paid ----
-    if (user.hasAccess) {
-      $("status").innerHTML = `<div class="status-box approved"><b>You have full access.</b> Every paper is unlocked. <a href="papers.html">Go to papers</a></div>`;
+    $("pageSub").textContent = `Pay once, practise every paper for ${planLabel()} from the day of payment.`;
+
+    // ---- already paid / renewal ----
+    const RENEW_WINDOW = 30;   // days before expiry when renewing is offered
+    if (user.isAdmin || (user.hasAccess && !user.accessExpiresAt)) {
+      $("status").innerHTML = `<div class="status-box approved"><b>You have full access${user.isAdmin ? " (admin)" : " for life"}.</b> Every paper is unlocked. <a href="papers.html">Go to papers</a></div>`;
       $("buyGrid").classList.add("hidden");
+    } else if (user.hasAccess) {
+      const left = daysLeft(user.accessExpiresAt);
+      $("status").innerHTML = `<div class="status-box approved"><b>Your access is active until ${fmtDay(user.accessExpiresAt)}</b> (${left} day${left === 1 ? "" : "s"} left).
+        ${left <= RENEW_WINDOW ? "Renew below and the new period is added on top." : `<a href="papers.html">Go to papers</a>`}</div>`;
+      if (left > RENEW_WINDOW) $("buyGrid").classList.add("hidden");
+      else document.querySelector("h1").textContent = "Renew your access";
+    } else if (user.accessExpiredAt) {
+      document.querySelector("h1").textContent = "Renew your access";
+      $("status").innerHTML = `<div class="status-box rejected"><b>Your access ended on ${fmtDay(user.accessExpiredAt)}.</b> Renew to unlock all papers again.</div>`;
     }
 
     // ---- what you get ----
     let papers = [];
     try { papers = await getPaperIndex(); } catch (e) {}
     const free = papers.filter((p) => p.free).length;
-    $("price").innerHTML = `&#8377;${price} <small>one time</small>`;
+    $("price").innerHTML = `&#8377;${price} <small>for ${planLabel()}</small>`;
     $("ticks").innerHTML = `
       <li>All ${papers.length || ""} previous year papers${free ? ` (${papers.length - free} locked now)` : ""}</li>
-      <li>New papers added later, at no extra cost</li>
+      <li>New papers and mock tests added during your ${planLabel()}, at no extra cost</li>
       <li>Real exam timer, palette and auto-submit</li>
       <li>Score, explanations and progress on any device</li>`;
 
@@ -135,14 +147,13 @@
 
     // ---- current request status ----
     function showStatus(p) {
-      if (!p || user.hasAccess) return;
+      if (!p || p.status === "approved") return;
       const when = fmtDate(p.createdAt);
       const box = {
         pending: `<div class="status-box pending"><b>Payment sent for checking.</b> Reference <b>${esc(p.ref)}</b>, sent ${when}. We'll unlock your account soon. You can send it again below if you made a typo.</div>`,
         rejected: `<div class="status-box rejected"><b>We couldn't match this payment.</b> Reference <b>${esc(p.ref)}</b>. Check the reference and send it again${PAYMENT.contact ? `, or contact ${esc(PAYMENT.contact)}` : ""}.</div>`,
-        approved: `<div class="status-box approved"><b>Approved.</b> Log out and in again if papers still look locked.</div>`,
       }[p.status] || "";
-      $("status").innerHTML = box;
+      if (box) $("status").innerHTML = box;
     }
     try { showStatus(await getMyPayment(user.uid)); } catch (e) {}
 

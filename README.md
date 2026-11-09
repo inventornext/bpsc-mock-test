@@ -95,7 +95,7 @@ These keys are meant to be public. The security rules are what protect the data:
 
 Do the same to add another admin. To stop public sign-ups, set `ALLOW_SIGNUP = false` in `firebase-config.js` and add students yourself under **Authentication > Users > Add user**.
 
-## Paid access (one-time payment, approved by you)
+## Paid access (1-year subscription, approved by you)
 
 Papers live in Firebase, not on GitHub, so nobody can open a locked paper without paying.
 
@@ -108,7 +108,8 @@ Edit `docs/js/config.js`:
 
 ```js
 const PAYMENT = {
-  price: 99,
+  price: 199,
+  validityDays: 365,            // access length from the day you approve (optional, default 365)
   upiId: "yourname@okaxis",     // your UPI ID (GPay/PhonePe/Paytm > profile)
   upiName: "BPSC Mock Test",
   razorpayLink: "",             // add later, e.g. "https://rzp.io/rzp/abc123"
@@ -124,9 +125,11 @@ To use Razorpay later: create an account, make a **Payment Page** or **Payment L
 
 1. Open **Admin**. New requests are at the top under **Payment requests**, with the reference the student typed.
 2. Find that reference (UTR) and amount in your UPI app's history or bank SMS.
-3. Click **Approve**. The student's papers unlock straight away (they may need to refresh). Click **Reject** if you can't find the payment.
+3. Click **Approve**. The student gets 1 year of access from that day (they may need to refresh). If they renew while still active, the new year is added on top. Click **Reject** if you can't find the payment.
 
-You can also give or remove access for any student in the **Students** table.
+Students see a reminder 15 days before expiry and can renew from 30 days before. After expiry, paid papers lock again until they renew. Students who bought before the subscription change (no expiry date) keep **lifetime** access.
+
+In the **Students** table you can see each student's expiry date, add a year by hand, or remove access.
 
 ### Connect the Paper Manager to Firebase (one time)
 
