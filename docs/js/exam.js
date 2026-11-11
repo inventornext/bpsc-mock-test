@@ -9,7 +9,7 @@ import {
 
 const user = await requireUser();
 const paperId = qs("paper");
-const LETTERS = ["a", "b", "c", "d"];
+const LETTERS = ["a", "b", "c", "d", "e"];
 
 let paper = null;
 let state = null;      // saved progress for this user + paper
@@ -188,7 +188,14 @@ function go(i) {
 
   $("qNo").textContent = `Question ${i + 1} of ${paper.questions.length}`;
   $("qMarks").innerHTML = `Marks: <b class="pos">+${fmtNum(paper.marks ?? 1)}</b>${paper.negative ? ` &nbsp; <b class="neg">-${fmtNum(paper.negative)}</b>` : ""}`;
-  $("qText").textContent = q.question;
+  $("qText").innerHTML = fmtQ(q.question);
+  const pb = $("qPassage");
+  if (q.passage) {
+    if (pb.dataset.text !== q.passage) { pb.dataset.text = q.passage; $("qPassageText").innerHTML = fmtQ(q.passage); pb.scrollTop = 0; }
+    pb.classList.remove("hidden");
+  } else {
+    pb.classList.add("hidden");
+  }
 
   const chosen = state.answers[q.id];
   $("qOptions").innerHTML = q.options
@@ -198,7 +205,7 @@ function go(i) {
         <label class="option${chosen === L ? " selected" : ""}" data-l="${L}">
           <input type="radio" name="opt" value="${L}" ${chosen === L ? "checked" : ""}>
           <span class="letter">${L.toUpperCase()}</span>
-          <span class="otext">${esc(opt)}</span>
+          <span class="otext">${fmtQ(opt)}</span>
         </label>`;
     })
     .join("");
@@ -251,7 +258,7 @@ function bindControls() {
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
-    const map = { a: "a", b: "b", c: "c", d: "d", 1: "a", 2: "b", 3: "c", 4: "d" };
+    const map = { a: "a", b: "b", c: "c", d: "d", e: "e", 1: "a", 2: "b", 3: "c", 4: "d", 5: "e" };
     if (map[k]) choose(map[k]);
     else if (k === "arrowright" || k === "n") go(state.current + 1);
     else if (k === "arrowleft" || k === "p") go(state.current - 1);

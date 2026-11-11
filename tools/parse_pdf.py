@@ -319,7 +319,7 @@ def check_question(q):
     """Return a list of reasons this question may need a hand fix."""
     issues = []
     opts = q.get("options") or []
-    if len(opts) != 4:
+    if len(opts) not in (4, 5):
         issues.append(f"found {len(opts)} options")
     if any(not str(o).strip() for o in opts):
         issues.append("empty option")

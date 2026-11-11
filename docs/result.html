@@ -20,7 +20,7 @@
 
     const user = await requireUser();
     renderTopbar(user, logout);
-    const LETTERS = ["a", "b", "c", "d"];
+    const LETTERS = ["a", "b", "c", "d", "e"];
     const main = document.getElementById("main");
 
     (async () => {
@@ -105,7 +105,7 @@
           let cls = "", tag = "";
           if (L === q.answer) { cls = "correct"; tag = L === mine ? "Your answer, correct" : "Correct answer"; }
           else if (L === mine) { cls = "wrong"; tag = "Your answer"; }
-          return `<div class="r-opt ${cls}"><span class="letter">${L.toUpperCase()}</span><span>${esc(o)}</span>${tag ? `<span class="tag">${tag}</span>` : ""}</div>`;
+          return `<div class="r-opt ${cls}"><span class="letter">${L.toUpperCase()}</span><span>${fmtQ(o)}</span>${tag ? `<span class="tag">${tag}</span>` : ""}</div>`;
         }).join("");
         return `
           <div class="review-q" data-k="${kind}" data-m="${marked ? 1 : 0}">
@@ -113,7 +113,8 @@
               <span class="rq-no">Question ${i + 1}${marked ? " &middot; marked for review" : ""}</span>
               <span class="badge ${kind}">${badge}</span>
             </div>
-            <p class="q-text">${esc(q.question)}</p>
+            ${q.passage ? `<details class="expl" style="margin:0 0 10px"><summary>Show the passage</summary><div>${fmtQ(q.passage)}</div></details>` : ""}
+            <p class="q-text">${fmtQ(q.question)}</p>
             ${opts}
             ${q.bonus ? `<p style="font-size:13px;color:#9a6a00;margin:6px 0 0">This question was dropped, so everyone gets the marks.</p>` : ""}
             ${q.explanation ? `<details class="expl"><summary>Explanation</summary><div>${esc(q.explanation)}</div></details>` : ""}

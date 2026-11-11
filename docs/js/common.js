@@ -34,6 +34,11 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// Question text: escapes HTML, then __text__ becomes underlined text
+function fmtQ(text) {
+  return esc(text).replace(/__(.+?)__/g, "<u>$1</u>");
+}
+
 function fmtClock(sec) {
   sec = Math.max(0, Math.floor(sec));
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
@@ -119,7 +124,7 @@ function renderTopbar(user, onLogout) {
   const el = document.getElementById("topbar");
   if (!el) return;
   el.innerHTML = `
-    <a class="brand" href="index.html"><span class="brand-badge">${esc(SITE.short)}</span><span class="full">${esc(SITE.name)}</span></a>
+    <a class="brand" href="papers.html"><span class="brand-badge">${esc(SITE.short)}</span><span class="full">${esc(SITE.name)}</span></a>
     <div class="user">
       <a class="btn btn-ghost" href="leaderboard.html">Toppers</a>
       ${user.isAdmin ? `<a class="btn btn-ghost" href="admin.html">Admin</a>` : ""}

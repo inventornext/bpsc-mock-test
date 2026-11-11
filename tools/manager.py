@@ -48,15 +48,17 @@ def with_flags(paper):
 
 def clean_question(q, i):
     """Validate one question coming back from the editor."""
-    opts = [str(o).strip() for o in (q.get("options") or [])][:4]
+    opts = [str(o).strip() for o in (q.get("options") or [])][:5]
     ans = q.get("answer")
     out = {
         "id": i + 1,
         "question": str(q.get("question", "")).strip(),
         "options": opts,
-        "answer": ans if ans in ("a", "b", "c", "d") else None,
+        "answer": ans if ans in ("a", "b", "c", "d", "e")[:len(opts)] else None,
         "explanation": str(q.get("explanation", "")).strip(),
     }
+    if str(q.get("passage") or "").strip():
+        out["passage"] = str(q["passage"]).strip()
     if q.get("bonus"):
         out["bonus"] = True
         out["answer"] = None

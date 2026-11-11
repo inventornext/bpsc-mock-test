@@ -140,10 +140,12 @@
         </div>
         <div class="issues hidden" id="eIssues"></div>
 
-        <div class="field"><label>Question text (press Enter for a new line)</label><textarea id="eQuestion" rows="6"></textarea></div>
+        <div class="field"><label>Reading passage (optional, shown above the question; same text for every question of a passage)</label><textarea id="ePassage" rows="3" placeholder="Leave empty if the question has no passage"></textarea></div>
+        <div class="field"><label>Question text (press Enter for a new line, wrap words in __double underscores__ to underline them)</label><textarea id="eQuestion" rows="6"></textarea></div>
 
         <label style="font-size:13px; font-weight:600; color:#3a4357">Options (tick the correct one)</label>
         <div id="eOptions" style="margin-top:6px"></div>
+        <button class="btn" id="optE" type="button" style="font-size:13px; padding:5px 12px">Add option E</button>
         <label style="display:flex; gap:8px; align-items:center; font-size:14px; margin:6px 0 14px">
           <input type="checkbox" id="eBonus"> Bonus / dropped question (everyone gets the marks)
         </label>

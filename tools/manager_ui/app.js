@@ -1,7 +1,7 @@
 // Paper Manager front end.
 
 const $ = (id) => document.getElementById(id);
-const LETTERS = ["a", "b", "c", "d"];
+const LETTERS = ["a", "b", "c", "d", "e"];
 
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
@@ -210,7 +210,7 @@ function localIssues(q) {
   // same checks as tools/parse_pdf.py check_question()
   const out = [];
   const opts = q.options || [];
-  if (opts.length !== 4) out.push(`found ${opts.length} options`);
+  if (opts.length !== 4 && opts.length !== 5) out.push(`found ${opts.length} options`);
   if (opts.some((o) => !String(o).trim())) out.push("empty option");
   if (!q.answer && !q.bonus) out.push("no answer");
   if (q.checked) return out;
@@ -240,6 +240,8 @@ function showQ(i) {
   $("eQno").textContent = `Question ${cur + 1} of ${paper.questions.length}`;
   $("eQuestion").value = q.question;
   $("eExplanation").value = q.explanation || "";
+  $("ePassage").value = q.passage || "";
+  $("optE").textContent = q.options.length > 4 ? "Remove option E" : "Add option E";
   $("eBonus").checked = !!q.bonus;
   $("eChecked").checked = !!q.checked;
   $("eOptions").innerHTML = q.options.map((o, k) => `
@@ -259,14 +261,22 @@ function refreshQ() {
   const box = $("eIssues");
   box.classList.toggle("hidden", !q._issues.length);
   box.textContent = q._issues.length ? "Check: " + q._issues.join(", ") : "";
-  $("ePreview").innerHTML = `${esc(q.question)}\n\n${q.options.map((o, k) =>
-    `${q.answer === LETTERS[k] ? "✅" : "○"} (${LETTERS[k]}) ${esc(o)}`).join("\n")}`;
+  const pas = q.passage ? `<div style="color:var(--muted);font-size:13px;max-height:90px;overflow:auto;border-left:3px solid var(--accent);padding-left:8px;margin-bottom:8px">${fmtQ(q.passage)}</div>` : "";
+  $("ePreview").innerHTML = `${pas}${fmtQ(q.question)}\n\n${q.options.map((o, k) =>
+    `${q.answer === LETTERS[k] ? "✅" : "○"} (${LETTERS[k]}) ${fmtQ(o)}`).join("\n")}`;
   drawGrid();
 }
 
 // edits
 $("eQuestion").oninput = (e) => { paper.questions[cur].question = e.target.value; markDirty(); refreshQ(); };
 $("eExplanation").oninput = (e) => { paper.questions[cur].explanation = e.target.value; markDirty(); };
+$("ePassage").oninput = (e) => { paper.questions[cur].passage = e.target.value; markDirty(); refreshQ(); };
+$("optE").onclick = () => {
+  const q = paper.questions[cur];
+  if (q.options.length > 4) { q.options = q.options.slice(0, 4); if (q.answer === "e") q.answer = null; }
+  else q.options.push("None of the above");
+  markDirty(); showQ(cur);
+};
 $("eOptions").addEventListener("input", (e) => {
   const q = paper.questions[cur];
   if (e.target.dataset.k !== undefined) q.options[+e.target.dataset.k] = e.target.value;

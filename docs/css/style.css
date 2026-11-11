@@ -392,3 +392,13 @@ a.booklet:focus-visible { outline: 3px solid var(--c); outline-offset: 3px; }
 .booklet.soon .booklet-name, .booklet.soon .booklet-counts { color: #8790a5; }
 .crumbs { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
 @media (prefers-reduced-motion: reduce) { .booklet, a.booklet:hover { transition: none; transform: none; } }
+
+/* ---------- reading passage on the exam screen ---------- */
+.passage {
+  max-width: 860px; max-height: 300px; overflow-y: auto; margin: 0 0 18px;
+  background: #f7f9fc; border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 8px; padding: 12px 16px; font-size: 15px; line-height: 1.6; white-space: pre-line;
+}
+.passage-title { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }
+.q-text u, .otext u, .r-opt u { text-decoration-thickness: 2px; text-underline-offset: 3px; }
+@media (max-width: 900px) { .passage { max-height: 220px; } }
