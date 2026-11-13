@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My results | BPSC Mock Test</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar" id="topbar"></header>
+
+  <main class="container dash">
+    <section class="exam-head">
+      <div>
+        <h1>My results</h1>
+        <p>Every test you've submitted, on any device. Open one to see your answers and the explanations.</p>
+      </div>
+      <div class="access" id="summary"></div>
+    </section>
+    <div id="list" style="margin-top:18px"><div class="loading">Loading results...</div></div>
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script type="module">
+    import { requireUser, logout, myAttempts, friendlyError } from "./js/fb.js";
+    const user = await requireUser();
+    renderTopbar(user, logout);
+    document.title = `My results | ${SITE.name}`;
+    const list = document.getElementById("list");
+
+    let attempts;
+    try { attempts = await myAttempts(user.uid); }
+    catch (e) { showFatal(list, "Could not load your results: " + friendlyError(e)); throw e; }
+
+    if (!attempts.length) {
+      list.innerHTML = `<div class="test-list"><div class="dash-empty"><b>No results yet.</b>Finish a test and your score shows up here. <a href="papers.html">Pick a test</a></div></div>`;
+    } else {
+      const avg = attempts.reduce((s, a) => s + (a.max ? a.score / a.max : 0), 0) / attempts.length * 100;
+      document.getElementById("summary").innerHTML =
+        `<span><b>${attempts.length}</b> test${attempts.length > 1 ? "s" : ""} submitted, average <b>${Math.round(avg)}%</b>.</span>`;
+      const title = (t) => String(t).replace(/\s*\((Hindi \+ English)\)\s*/gi, " ").trim();
+      list.innerHTML = `<div class="test-list">${attempts.map((a) => {
+        const pct = a.max ? Math.max(0, Math.round(a.score / a.max * 100)) : 0;
+        return `
+        <article class="test-row">
+          <div class="bubble done" aria-hidden="true">${pct}%</div>
+          <div>
+            <h3>${esc(title(a.title))}</h3>
+            <div class="tr-meta"><span>${fmtDate(a.submittedAt)}</span><span>Score ${fmtNum(a.score)} of ${fmtNum(a.max)}</span><span>${a.correct} right, ${a.wrong} wrong, ${a.skipped} skipped</span><span>${fmtDuration(a.timeTaken)} taken</span></div>
+          </div>
+          <div class="tr-actions"><a class="btn" href="result.html?attempt=${encodeURIComponent(a.id)}">View answers</a></div>
+        </article>`;
+      }).join("")}</div>`;
+    }
+  </script>
+</body>
+</html>

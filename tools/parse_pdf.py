@@ -284,6 +284,7 @@ def rebuild_index():
             "free": bool(d.get("free", False)),
             "category": d["category"],
             "exam": d["exam"],
+            **({"hindi": True} if any(q.get("question_hi") for q in d["questions"]) else {}),
             **({"liveStart": d["liveStart"]} if d.get("liveStart") else {}),
             **({"liveEnd": d["liveEnd"]} if d.get("liveEnd") else {}),
         })
