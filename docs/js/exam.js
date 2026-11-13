@@ -126,6 +126,16 @@ function startExam() {
 
   buildPalette();
   bindControls();
+  if (hasHindi(paper)) {
+    const slot = $("langSlot");
+    const draw = () => { slot.innerHTML = langSwitchHTML(getLang()); };
+    draw();
+    slot.onclick = (e) => {
+      const b = e.target.closest("button[data-lang]");
+      if (!b || b.dataset.lang === getLang()) return;
+      setLang(b.dataset.lang); draw(); go(state.current);   // answers stay as they are
+    };
+  }
   go(state.current || 0);
   tick();
   timerId = setInterval(tick, 1000);
@@ -182,9 +192,11 @@ function refreshPalette() {
 function go(i) {
   i = Math.max(0, Math.min(paper.questions.length - 1, i));
   state.current = i;
-  const q = paper.questions[i];
+  const lang = getLang();
+  const q = tr(paper.questions[i], lang);
   state.visited[q.id] = true;
   save();
+  $("qPassageTitle").textContent = lang === "hi" && q.question_hi ? "पहले इसे पढ़ें" : "Read this first";
 
   $("qNo").textContent = `Question ${i + 1} of ${paper.questions.length}`;
   $("qMarks").innerHTML = `Marks: <b class="pos">+${fmtNum(paper.marks ?? 1)}</b>${paper.negative ? ` &nbsp; <b class="neg">-${fmtNum(paper.negative)}</b>` : ""}`;

@@ -59,6 +59,13 @@ def clean_question(q, i):
     }
     if str(q.get("passage") or "").strip():
         out["passage"] = str(q["passage"]).strip()
+    # optional Hindi version (options must stay in the same order as the English ones)
+    for k in ("question_hi", "explanation_hi", "passage_hi"):
+        if str(q.get(k) or "").strip():
+            out[k] = str(q[k]).strip()
+    hi_opts = [str(o).strip() for o in (q.get("options_hi") or [])]
+    if hi_opts and len(hi_opts) >= len(opts):
+        out["options_hi"] = hi_opts[:len(opts)]
     if q.get("bonus"):
         out["bonus"] = True
         out["answer"] = None

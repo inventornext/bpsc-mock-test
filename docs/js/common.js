@@ -39,6 +39,25 @@ function fmtQ(text) {
   return esc(text).replace(/__(.+?)__/g, "<u>$1</u>");
 }
 
+// ---- Hindi / English switch ----
+// A question can carry question_hi, options_hi, explanation_hi and passage_hi.
+// Options keep the same order in both languages, so saved answers (a-e) never change.
+const LANG_KEY = "bpsc_lang";
+function getLang() { try { return localStorage.getItem(LANG_KEY) === "hi" ? "hi" : "en"; } catch (e) { return "en"; } }
+function setLang(l) { try { localStorage.setItem(LANG_KEY, l === "hi" ? "hi" : "en"); } catch (e) {} }
+function hasHindi(paper) { return !!(paper && (paper.questions || []).some((q) => q.question_hi)); }
+function tr(q, lang) {
+  if (lang !== "hi" || !q.question_hi) return q;
+  const oh = Array.isArray(q.options_hi) && q.options_hi.length === q.options.length ? q.options_hi : q.options;
+  return { ...q, question: q.question_hi, options: oh,
+    explanation: q.explanation_hi || q.explanation, passage: q.passage_hi || q.passage };
+}
+function langSwitchHTML(lang) {
+  return `<span class="lang-switch" role="group" aria-label="Language">` +
+    `<button type="button" data-lang="en" class="${lang === "en" ? "on" : ""}">English</button>` +
+    `<button type="button" data-lang="hi" class="${lang === "hi" ? "on" : ""}">हिंदी</button></span>`;
+}
+
 function fmtClock(sec) {
   sec = Math.max(0, Math.floor(sec));
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;

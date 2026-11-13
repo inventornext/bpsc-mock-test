@@ -91,11 +91,19 @@
           <button class="chip" data-f="s">Not answered (${s.skipped})</button>
           <button class="chip" data-f="m">Marked (${Object.values(attempt.marked || {}).filter(Boolean).length})</button>
           <button class="chip" id="expandAll" style="margin-left:auto">Show all explanations</button>
+          ${hasHindi(paper) ? `<span id="langSlot">${langSwitchHTML(getLang())}</span>` : ""}
         </div>
         <div id="review"></div>`;
 
+      const ls = document.getElementById("langSlot");
+      if (ls) ls.onclick = (e) => {
+        const b = e.target.closest("button[data-lang]");
+        if (b && b.dataset.lang !== getLang()) { setLang(b.dataset.lang); location.reload(); }
+      };
+      const lang = getLang();
       const review = document.getElementById("review");
-      review.innerHTML = paper.questions.map((q, i) => {
+      review.innerHTML = paper.questions.map((q0, i) => {
+        const q = tr(q0, lang);
         const mine = attempt.answers[q.id];
         const kind = q.bonus ? "b" : !mine ? "s" : mine === q.answer ? "c" : "w";
         const badge = { c: "Correct", w: "Wrong", s: "Not answered", b: "Bonus" }[kind];

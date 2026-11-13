@@ -402,3 +402,10 @@ a.booklet:focus-visible { outline: 3px solid var(--c); outline-offset: 3px; }
 .passage-title { font-weight: 700; font-size: 13px; color: var(--accent); margin-bottom: 4px; }
 .q-text u, .otext u, .r-opt u { text-decoration-thickness: 2px; text-underline-offset: 3px; }
 @media (max-width: 900px) { .passage { max-height: 220px; } }
+
+/* Hindi / English switch */
+.lang-switch { display: inline-flex; border: 1px solid var(--navy); border-radius: 999px; overflow: hidden; vertical-align: middle; }
+.lang-switch button { border: 0; background: #fff; color: var(--navy); font: inherit; font-size: 13px; font-weight: 600; padding: 4px 12px; cursor: pointer; }
+.lang-switch button.on { background: var(--navy); color: #fff; }
+.q-head #langSlot { margin-left: auto; margin-right: 12px; }
+.filters #langSlot { margin-left: 8px; }
