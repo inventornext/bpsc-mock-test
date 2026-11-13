@@ -17,6 +17,7 @@
       <select id="paperSel" style="min-width:260px"></select>
     </div>
 
+    <p id="liveNote" style="margin:0 0 12px; font-size:14px"></p>
     <div id="board"><div class="loading">Loading...</div></div>
     <div id="mine" style="margin-top:14px"></div>
   </main>
@@ -49,6 +50,10 @@
       const id = $("paperSel").value;
       history.replaceState(null, "", `?paper=${encodeURIComponent(id)}`);
       $("board").innerHTML = `<div class="loading">Loading...</div>`;
+      const pe = papers.find((p) => p.id === id), lst = liveState(pe);
+      $("liveNote").innerHTML = !lst ? "" : lst === "upcoming"
+        ? `<span class="soon-badge">Upcoming</span> Live test starts ${fmtWhen(pe.liveStart)}.`
+        : `<span class="${lst === "live" ? "live-badge" : "soon-badge"}">${lst === "live" ? "&#9679; LIVE" : "Live test"}</span> ${pe.liveEnd ? `Ranking counts first attempts started before ${fmtWhen(pe.liveEnd)}.${lst === "ended" ? " Final result." : ""}` : ""}`;
       $("mine").innerHTML = "";
       let top = [], me = null;
       try {

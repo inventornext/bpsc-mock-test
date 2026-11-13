@@ -99,7 +99,8 @@ async function loadPapers() {
         <thead><tr><th>Paper</th><th>Exam</th><th>Type</th><th>Year</th><th>Questions</th><th>Free</th><th>Status</th><th></th></tr></thead>
         <tbody>${papers.map((p) => `
           <tr>
-            <td><b>${esc(p.title)}</b><span class="muted" style="display:block;color:var(--muted);font-size:12px">${esc(p.id)}.json</span></td>
+            <td><b>${esc(p.title)}</b><span class="muted" style="display:block;color:var(--muted);font-size:12px">${esc(p.id)}.json</span>
+                ${p.liveStart ? `<span style="display:inline-block;margin-top:3px;font-size:12px;font-weight:700;color:${p.liveEnd && p.liveEnd < Date.now() ? "#667" : "#c0263b"}">${p.liveEnd && p.liveEnd < Date.now() ? "Live ended" : p.liveStart > Date.now() ? "Live from" : "LIVE now, from"} ${new Date(p.liveStart).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}${p.liveEnd ? " to " + new Date(p.liveEnd).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : ""} IST</span>` : ""}</td>
             <td>${esc(examShort(p.exam))}</td>
             <td>${p.category === "mock" ? "Mock test" : "Previous year"}</td>
             <td>${esc(p.year ?? "")}</td>
@@ -196,6 +197,8 @@ async function openEditor(id, onlyFlagged) {
   $("eFree").checked = !!paper.free;
   $("eCategory").value = paper.category === "mock" ? "mock" : "pyq";
   $("eExam").value = paper.exam || (EXAMS[0] && EXAMS[0].id) || "";
+  $("eLiveStart").value = toIST(paper.liveStart);
+  $("eLiveEnd").value = toIST(paper.liveEnd);
   $("onlyFlagged").checked = onlyFlagged;
   dirty = false;
   $("saveMsg").textContent = "";
@@ -296,6 +299,12 @@ $("eChecked").onchange = (e) => { paper.questions[cur].checked = e.target.checke
 $("eFree").onchange = markDirty;
 $("eCategory").onchange = markDirty;
 $("eExam").onchange = markDirty;
+// live schedule: the inputs show India time whatever the computer's clock zone is
+const IST = 5.5 * 3600 * 1000;
+function toIST(ms) { return ms ? new Date(ms + IST).toISOString().slice(0, 16) : ""; }
+function fromIST(v) { return v ? Date.parse(v + ":00Z") - IST : null; }
+$("eLiveStart").onchange = $("eLiveEnd").onchange = markDirty;
+$("clearLive").onclick = () => { $("eLiveStart").value = ""; $("eLiveEnd").value = ""; markDirty(); };
 
 $("qgrid").onclick = (e) => { const b = e.target.closest("[data-i]"); if (b) showQ(+b.dataset.i); };
 $("onlyFlagged").onchange = drawGrid;
@@ -322,6 +331,7 @@ async function save() {
     const body = {
       title: $("eTitle").value, year: $("eYear").value, duration: $("eDuration").value,
       marks: $("eMarks").value, negative: $("eNegative").value, free: $("eFree").checked, category: $("eCategory").value, exam: $("eExam").value, questions: paper.questions,
+      liveStart: fromIST($("eLiveStart").value), liveEnd: fromIST($("eLiveEnd").value),
     };
     paper = await api(`/api/paper/${paper.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     dirty = false;

@@ -15,6 +15,7 @@
     <p class="page-sub" id="pageSub">Pick an exam, then a paper. Your answers save online as you go, so you can resume on any device.</p>
 
     <div id="unlockBanner"></div>
+    <div id="liveStrip"></div>
 
     <!-- exam picker (no exam chosen) -->
     <div id="examView" class="hidden">
@@ -96,6 +97,26 @@
 
     // ---- which exam? ----
     papers.forEach((p) => (p.exam = p.exam || "cce"));
+
+    // ---- live and upcoming scheduled tests (all exams) ----
+    const liveList = papers.filter((p) => ["live", "upcoming"].includes(liveState(p)))
+      .sort((a, b) => a.liveStart - b.liveStart);
+    if (liveList.length) {
+      document.getElementById("liveStrip").innerHTML = `
+        <h2 class="section-title" style="margin-top:6px">Live tests</h2>
+        <div class="live-list">${liveList.map((p) => {
+          const st = liveState(p), locked = !p.free && !user.hasAccess;
+          const when = st === "live"
+            ? `<span class="live-badge">&#9679; LIVE NOW</span> ${p.liveEnd ? `Ends ${fmtWhen(p.liveEnd)} &middot; <span data-cd="${p.liveEnd}">${fmtCountdown(p.liveEnd - Date.now())}</span> left` : ""}`
+            : `<span class="soon-badge">Upcoming</span> Starts ${fmtWhen(p.liveStart)} &middot; in <span data-cd="${p.liveStart}">${fmtCountdown(p.liveStart - Date.now())}</span>`;
+          const btn = st === "upcoming" ? `<button class="btn" disabled>Opens at start time</button>`
+            : locked ? `<a class="btn" href="buy.html">Unlock &#8377;${PAYMENT.price}</a>`
+            : `<a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(p.id)}">Start now</a>`;
+          return `<div class="live-item"><div><b>${esc(p.title)}</b><div class="live-when">${when}</div>
+            <div class="live-when">${p.count} questions &middot; ${p.duration} min${p.liveEnd ? " &middot; start before the end time to be ranked" : ""}</div></div>${btn}</div>`;
+        }).join("")}</div>`;
+    }
+
     const examsWithPapers = exams.filter((e) => papers.some((p) => p.exam === e.id));
     let examId = qs("exam");
     if (!examId && examsWithPapers.length === 1 && exams.length === 1) examId = examsWithPapers[0].id;
@@ -142,11 +163,13 @@
         const prog = progress[p.id];
         const inProgress = prog && prog.endsAt > Date.now();
         const locked = !p.free && !user.hasAccess;
+        const st = liveState(p);
         return `
           <div class="paper-card${locked ? " locked" : ""}">
-            <div style="display:flex; gap:6px; align-items:center">
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap">
               ${p.category === "mock" ? `<span class="year">Mock</span>` : `<span class="year">${esc(p.year ?? "")}</span>`}
               ${p.free ? `<span class="free-tag">Free</span>` : locked ? `<span class="lock-tag">&#128274; Locked</span>` : ""}
+              ${st === "live" ? `<span class="live-badge">&#9679; LIVE</span>` : st === "upcoming" ? `<span class="soon-badge">Starts ${fmtWhen(p.liveStart)}</span>` : ""}
             </div>
             <h3>${esc(p.title)}</h3>
             <div class="paper-meta">
@@ -157,7 +180,9 @@
             ${inProgress ? `<span class="resume-tag">In progress, ${fmtClock((prog.endsAt - Date.now()) / 1000)} left</span>` : ""}
             <div class="best">${best !== null ? `Best: <b>${fmtNum(best)}</b> / ${fmtNum(p.count * p.marks)} (${mine.length} attempt${mine.length > 1 ? "s" : ""})` : `<span style="color:var(--muted)">Not attempted yet</span>`}</div>
             <div class="actions">
-              ${locked
+              ${st === "upcoming" && !user.isAdmin
+                ? `<button class="btn" disabled>Opens in <span data-cd="${p.liveStart}">${fmtCountdown(p.liveStart - Date.now())}</span></button>`
+                : locked
                 ? `<a class="btn" href="buy.html">Unlock &#8377;${PAYMENT.price}</a>`
                 : `<a class="btn btn-primary" href="exam.html?paper=${encodeURIComponent(p.id)}">${inProgress ? "Resume" : "Start test"}</a>`}
               <a class="btn" href="leaderboard.html?paper=${encodeURIComponent(p.id)}" title="Top 10" style="flex:0 0 auto">&#127942; Toppers</a>
@@ -167,6 +192,7 @@
     }
     }
     drawPapers();
+    startCountdowns();
 
     if (!attempts.length) {
       hist.innerHTML = `<div class="empty">No attempts yet. Finish a test and your results show up here, on any device you log in from.</div>`;

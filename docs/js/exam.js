@@ -3,7 +3,7 @@
 // so a test can be resumed on another device.
 
 import {
-  requireUser, logout, loadProgress, saveProgress, clearProgress, saveAttempt, getPaper, friendlyError,
+  requireUser, logout, loadProgress, saveProgress, clearProgress, saveAttempt, getPaper, getPaperIndex, friendlyError,
   addLeaderboardEntry,
 } from "./fb.js";
 
@@ -58,6 +58,13 @@ window.addEventListener("online", () => { dirty = true; flush(); });
     $("instrTitle").textContent = "Could not load this paper: " + friendlyError(e);
     return;
   }
+  // scheduled test that hasn't started (the server also refuses to send its questions early)
+  let entry = null;
+  if (!paper || liveState(paper) === "upcoming") {
+    try { entry = (await getPaperIndex()).find((p) => p.id === paperId) || null; } catch (e) {}
+  }
+  const sched = paper || entry;
+  if (sched && liveState(sched) === "upcoming" && !user.isAdmin) { showNotYet(sched); return; }
   if (!paper) {
     // locked (not paid) or doesn't exist
     location.replace(user.hasAccess ? "papers.html" : "buy.html");
@@ -81,9 +88,27 @@ window.addEventListener("online", () => { dirty = true; flush(); });
   showInstructions(resumable);
 })();
 
+function showNotYet(p) {
+  document.title = `${p.title} | ${SITE.name}`;
+  $("instrTitle").textContent = p.title;
+  $("instrFacts").innerHTML = `
+    <div class="fact" style="grid-column:1/-1"><b>Starts ${fmtWhen(p.liveStart)}</b><span>This is a scheduled live test</span></div>
+    <div class="fact" style="grid-column:1/-1"><b data-cd="${p.liveStart}" style="font-size:28px">${fmtCountdown(p.liveStart - Date.now())}</b><span>Time to start. This page opens the test by itself.</span></div>`;
+  const agreeRow = $("agree") && $("agree").closest("label");
+  if (agreeRow) agreeRow.classList.add("hidden");
+  $("startBtn").disabled = true;
+  $("startBtn").textContent = "Not started yet";
+  startCountdowns();
+}
+
 function showInstructions(resumable) {
   const n = paper.questions.length;
   $("instrTitle").textContent = paper.title;
+  const st = liveState(paper);
+  if (st === "live" && paper.liveEnd) {
+    $("instrTitle").insertAdjacentHTML("afterend",
+      `<p class="live-note"><span class="live-badge">&#9679; LIVE</span> Ends ${fmtWhen(paper.liveEnd)}. Your first attempt counts in the toppers list if you start before then.</p>`);
+  }
   $("instrFacts").innerHTML = `
     <div class="fact"><b>${n}</b><span>Questions</span></div>
     <div class="fact"><b>${paper.duration} min</b><span>Duration</span></div>
@@ -330,7 +355,8 @@ async function submit(auto) {
     return;
   }
 
-  await addLeaderboardEntry(attempt);   // counts only if it's the first attempt
+  // counts only if it's the first attempt (and, for a live test, started before it ended)
+  if (!paper.liveEnd || state.startedAt < paper.liveEnd) await addLeaderboardEntry(attempt);
 
   state.submitted = true;
   Store.remove(localKey());

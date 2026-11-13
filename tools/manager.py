@@ -217,6 +217,20 @@ def api_save_paper(pid):
     for k in ("marks", "negative"):
         if paper[k] == int(paper[k]):
             paper[k] = int(paper[k])
+    # optional live schedule, in milliseconds (the editor converts from IST)
+    try:
+        ls = int(data["liveStart"]) if data.get("liveStart") else None
+        le = int(data["liveEnd"]) if data.get("liveEnd") else None
+    except (TypeError, ValueError):
+        return jsonify(error="Live start/end time is not valid."), 400
+    if le and not ls:
+        return jsonify(error="Set a live start time, or clear the end time."), 400
+    if ls and le and le <= ls:
+        return jsonify(error="Live end time must be after the start time."), 400
+    if ls:
+        paper["liveStart"] = ls
+    if le:
+        paper["liveEnd"] = le
     write_paper(paper)
     return jsonify(with_flags(paper))
 

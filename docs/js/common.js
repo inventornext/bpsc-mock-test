@@ -58,6 +58,41 @@ function langSwitchHTML(lang) {
     `<button type="button" data-lang="hi" class="${lang === "hi" ? "on" : ""}">हिंदी</button></span>`;
 }
 
+// ---- Scheduled (live) tests ----
+// A paper may have liveStart / liveEnd (milliseconds). Before liveStart it can't be opened;
+// between the two it's LIVE; after liveEnd it's a normal practice paper. Toppers count only
+// first attempts started before liveEnd.
+function liveState(p, now = Date.now()) {
+  if (!p || !p.liveStart) return null;
+  if (now < p.liveStart) return "upcoming";
+  if (!p.liveEnd || now < p.liveEnd) return "live";
+  return "ended";
+}
+function fmtWhen(ts) {
+  return new Date(ts).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" }) + " IST";
+}
+function fmtCountdown(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(t / 86400), h = Math.floor((t % 86400) / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${m}m ${String(s).padStart(2, "0")}s`;
+}
+// Keeps every <span data-cd="timestamp"> showing time left; reloads the page when one hits zero.
+function startCountdowns() {
+  const tick = () => {
+    let reload = false;
+    document.querySelectorAll("[data-cd]").forEach((el) => {
+      const left = +el.dataset.cd - Date.now();
+      if (left <= 0) reload = true;
+      el.textContent = fmtCountdown(left);
+    });
+    if (reload) setTimeout(() => location.reload(), 1500);
+    else setTimeout(tick, 1000);
+  };
+  tick();
+}
+
 function fmtClock(sec) {
   sec = Math.max(0, Math.floor(sec));
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;

@@ -31,7 +31,9 @@ service cloud.firestore {
       allow write: if false;
     }
     match /papers/{paperId} {
-      allow read: if signedIn() && (resource.data.free == true || hasPaid() || isAdmin());
+      // scheduled tests: questions can't be read before liveStart (admins can always preview)
+      allow read: if signedIn() && (isAdmin() || ((resource.data.free == true || hasPaid())
+        && (!('liveStart' in resource.data) || request.time.toMillis() >= resource.data.liveStart)));
       allow write: if false;
     }
 

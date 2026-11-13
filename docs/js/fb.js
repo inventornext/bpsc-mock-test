@@ -216,6 +216,9 @@ export async function getMyLeaderboardEntry(paperId, uid) {
 export async function rebuildLeaderboards(attempts, papersById) {
   const first = {};
   for (const a of attempts) {
+    const p = papersById[a.paperId];
+    const started = (a.submittedAt || 0) - (a.timeTaken || 0) * 1000;
+    if (p && p.liveEnd && started >= p.liveEnd) continue;   // live test: attempts started after the end don't rank
     const k = `${a.paperId}|${a.uid}`;
     if (!first[k] || a.submittedAt < first[k].submittedAt) first[k] = a;
   }

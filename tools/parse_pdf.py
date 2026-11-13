@@ -284,6 +284,8 @@ def rebuild_index():
             "free": bool(d.get("free", False)),
             "category": d["category"],
             "exam": d["exam"],
+            **({"liveStart": d["liveStart"]} if d.get("liveStart") else {}),
+            **({"liveEnd": d["liveEnd"]} if d.get("liveEnd") else {}),
         })
     papers.sort(key=lambda p: (p.get("year") or 0), reverse=True)
     return papers
